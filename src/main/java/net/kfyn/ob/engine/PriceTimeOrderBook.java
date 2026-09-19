@@ -97,6 +97,36 @@ public class PriceTimeOrderBook implements OrderBook {
         return Collections.unmodifiableNavigableMap(asks);
     }
 
+    /**
+     * Runs the auction uncross over the resting book as a pure query: orders
+     * are flattened per side in price-time order (price priority, FIFO within
+     * a level) and uncrossed by {@link PriceTimeAuctionEngine}. The book is
+     * not modified.
+     */
+    public AuctionResult uncross() {
+        List<Order> bids = new ArrayList<>();
+        this.bids.forEach((px, level) -> level.forEach(bids::add));
+        List<Order> asks = new ArrayList<>();
+        this.asks.forEach((px, level) -> level.forEach(asks::add));
+        return new PriceTimeAuctionEngine().uncross(bids, asks);
+    }
+
+    /**
+     * Closes the auction: uncrosses the book and settles it to the outcome.
+     * Fully filled orders are removed, partially filled orders reduced to new
+     * instances with the same id (queue order preserved), and unfilled orders
+     * left resting as-is. Returns the uncrossing result.
+     */
+    public AuctionResult close() {
+        AuctionResult result = uncross();
+        bids.clear();
+        asks.clear();
+        for (Order o : result.leftovers()) {
+            side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addLast(o);
+        }
+        return result;
+    }
+
     private Map.Entry<Long, ? extends Collection<Order>> best(TreeMap<Long, ArrayDeque<Order>> side) {
         while (!side.isEmpty()) {
             var e = side.firstEntry();

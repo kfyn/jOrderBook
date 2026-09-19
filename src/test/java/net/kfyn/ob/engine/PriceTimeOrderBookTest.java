@@ -6,8 +6,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.Random;
+import java.util.SortedMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -193,6 +198,87 @@ class PriceTimeOrderBookTest {
             book.add(order(1, Side.BUY, 100, 5));
             book.bids().get(100L).clear();   // level collections deliberately live: engine drains levels through best
             assertTrue(book.bids().get(100L).isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("auction uncross over the resting book")
+    class AuctionClose {
+
+        /** Spec book: bids 100@100, 1000@99, 500@96; asks 50000@102, 200@99, 700@98. */
+        private PriceTimeOrderBook specBook() {
+            var book = new PriceTimeOrderBook(Instrument.of("BHP", "1", "1"));
+            book.add(order(1, Side.BUY, 100, 100));
+            book.add(order(2, Side.BUY, 99, 1000));
+            book.add(order(3, Side.BUY, 96, 500));
+            book.add(order(4, Side.SELL, 102, 50000));
+            book.add(order(5, Side.SELL, 99, 200));
+            book.add(order(6, Side.SELL, 98, 700));
+            return book;
+        }
+
+        @Test
+        void uncrossFindsSpecClearingPriceWithoutMutating() {
+            var book = specBook();
+            var r = book.uncross();
+            assertEquals(OptionalLong.of(99), r.priceTicks());
+            assertEquals(900, r.volumeTicks());
+            assertEquals(3, r.trades().size());
+            // pure query: all six orders still rest on the book
+            assertEquals(3, book.bids().size());
+            assertEquals(3, book.asks().size());
+        }
+
+        @Test
+        void closeSettlesBookToLeftovers() {
+            var book = specBook();
+            var r = book.close();
+            assertEquals(OptionalLong.of(99), r.priceTicks());
+            assertEquals(900, r.volumeTicks());
+            assertEquals(3, r.trades().size());
+            // clearing 99: bid #1 100@100 filled by ask #6 700@98; bid #2 takes the
+            // remaining 600@98 and 200@99 -> reduced to 200; ask #4 102 untouched
+            assertEquals(List.of(2L, 3L), flatten(book.bids()).stream().map(Order::id).toList());
+            assertEquals(List.of(4L), flatten(book.asks()).stream().map(Order::id).toList());
+            assertEquals(200, book.bids().get(99L).iterator().next().qtyTicks());
+            assertEquals(500, book.bids().get(96L).iterator().next().qtyTicks());
+            assertEquals(50000, book.asks().get(102L).iterator().next().qtyTicks());
+            assertFalse(book.bids().containsKey(100L));   // fully filled level pruned
+            assertFalse(book.asks().containsKey(98L));
+            assertFalse(book.asks().containsKey(99L));
+            assertEquals(99L, book.bestBid().getKey());
+        }
+
+        @Test
+        void closeOnDisjointBookKeepsEverything() {
+            var book = new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var b = order(1, Side.BUY, 100, 5);
+            var s = order(2, Side.SELL, 101, 5);
+            book.add(b);
+            book.add(s);
+            var r = book.close();
+            assertTrue(r.priceTicks().isEmpty());
+            assertEquals(0, r.volumeTicks());
+            assertSame(b, book.bids().get(100L).iterator().next());   // same instances rest again
+            assertSame(s, book.asks().get(101L).iterator().next());
+        }
+
+        @Test
+        void uncrossAndCloseOnEmptyBook() {
+            var book = new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var r = book.uncross();
+            assertTrue(r.priceTicks().isEmpty());
+            assertEquals(0, r.volumeTicks());
+            assertTrue(r.leftovers().isEmpty());
+            book.close();                                     // no-op on an empty book
+            assertTrue(book.bids().isEmpty());
+            assertTrue(book.asks().isEmpty());
+        }
+
+        private static List<Order> flatten(SortedMap<Long, ? extends Collection<Order>> side) {
+            List<Order> out = new ArrayList<>();
+            side.forEach((px, level) -> out.addAll(level));
+            return out;
         }
     }
 
