@@ -103,6 +103,20 @@ are explicit.
   quantity tick) and reject non-multiples; there is no round-lot/minimum-lot
   model, no lot-size change over time, and no handling of residual odd lots.
 
+**Market data model**
+- **Market By Price (MBP) input**: the book currently models each resting
+  participant as an identified order (`Order` with an id) and emits trades that
+  name both counterparties (`Trade.bidOrderId`/`askOrderId`), i.e. **Market By
+  Order (MBO)** — required here because the auction phase takes submit/amend/
+  cancel against individual orders. An MBP feed (aggregate quantity per price
+  level, no per-order identity) has no order to amend or cancel; supporting it
+  would need a second book representation keyed by price only, a different
+  result type (no per-order trade legs, only price/volume and the residual
+  levels), and a rule for how much of a level's quantity is consumed. The
+  clearing-price sweep itself already works off aggregate quantity per price
+  (`MaxVolAuctionEngine.aggregate`), so the MBP path would only replace the book
+  and the trade materialisation.
+
 **Book & engine**
 - Duplicate order ids are not enforced (`add()` accepts them); the book and
   engine treat orders as value-equal, so callers must keep ids unique.

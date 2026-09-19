@@ -76,7 +76,7 @@ public class AuctionEngineBenchmark {
     @Benchmark
     public AuctionResult uncrossNoCross() {
         // Truly uncrossed book: exercises the engine's early-exit path
-        // (no aggregation, no sweep, single leftovers copy).
+        // (no aggregation, no sweep).
         return AuctionEngine.maxVol().uncross(gappedBids, gappedAsks);
     }
 }
