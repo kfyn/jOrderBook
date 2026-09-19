@@ -34,6 +34,10 @@ public class AuctionEngineBenchmark {
     @Param({"16", "256"})
     int levels;
 
+    /** Orders resting at each price level. */
+    @Param({"1", "4", "16"})
+    int ordersPerLevel;
+
     List<Order> crossedBids;
     List<Order> crossedAsks;
     List<Order> gappedBids;
@@ -41,17 +45,25 @@ public class AuctionEngineBenchmark {
 
     @Setup(Level.Trial)
     public void setup() {
-        crossedBids = new ArrayList<>(levels);
-        crossedAsks = new ArrayList<>(levels);
-        gappedBids = new ArrayList<>(levels);
-        gappedAsks = new ArrayList<>(levels);
+        int n = levels * ordersPerLevel;
+        crossedBids = new ArrayList<>(n);
+        crossedAsks = new ArrayList<>(n);
+        gappedBids = new ArrayList<>(n);
+        gappedAsks = new ArrayList<>(n);
         long id = 1;
         for (int i = 0; i < levels; i++) {
-            // tick size $1, quantity 100 shares per level
-            crossedBids.add(new SimpleOrder(id++, Side.BUY, 100 + i, 100, OrderType.LIMIT));
-            crossedAsks.add(new SimpleOrder(id++, Side.SELL, 100 - i, 100, OrderType.LIMIT));
-            gappedBids.add(new SimpleOrder(id++, Side.BUY, 200 + i, 100, OrderType.LIMIT));
-            gappedAsks.add(new SimpleOrder(id++, Side.SELL, 50 - i, 100, OrderType.LIMIT));
+            // tick size $1; slight qty mix so levels are not all identical
+            long crossedBidPx = 100 + i;
+            long crossedAskPx = 100 - i;
+            long gappedBidPx = 100 + i;
+            long gappedAskPx = 300 + i;   // every ask sits far above every bid
+            for (int k = 0; k < ordersPerLevel; k++) {
+                long qty = 100 + 25 * (k % 4);
+                crossedBids.add(new SimpleOrder(id++, Side.BUY, crossedBidPx, qty, OrderType.LIMIT));
+                crossedAsks.add(new SimpleOrder(id++, Side.SELL, crossedAskPx, qty, OrderType.LIMIT));
+                gappedBids.add(new SimpleOrder(id++, Side.BUY, gappedBidPx, qty, OrderType.LIMIT));
+                gappedAsks.add(new SimpleOrder(id++, Side.SELL, gappedAskPx, qty, OrderType.LIMIT));
+            }
         }
     }
 
@@ -62,6 +74,8 @@ public class AuctionEngineBenchmark {
 
     @Benchmark
     public AuctionResult uncrossNoCross() {
+        // Truly uncrossed book: exercises the engine's early-exit path
+        // (no aggregation, no sweep, single leftovers copy).
         return AuctionEngine.priceTime().uncross(gappedBids, gappedAsks);
     }
 }
