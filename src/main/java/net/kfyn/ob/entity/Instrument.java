@@ -22,11 +22,11 @@ public record Instrument(String symbol, long pxTickMantissa, int pxScale, long q
     }
 
     public long pxTicks(BigDecimal v) {
-        return ticks(v, pxTickMantissa, pxScale, symbol);
+        return ticks(symbol, v, pxTickMantissa, pxScale);
     }
 
     public long qtyTicks(BigDecimal v) {
-        long t = ticks(v, qtyTickMantissa, qtyScale, symbol);
+        long t = ticks(symbol, v, qtyTickMantissa, qtyScale);
         if (t <= 0) throw new IllegalArgumentException(symbol + ": qty must be positive: " + v);
         return t;
     }
@@ -39,7 +39,7 @@ public record Instrument(String symbol, long pxTickMantissa, int pxScale, long q
         return value(t, qtyTickMantissa, qtyScale);
     }
 
-    private static long ticks(BigDecimal v, long tickM, int scale, String symbol) {
+    private static long ticks(String symbol, BigDecimal v, long tickM, int scale) {
         Objects.requireNonNull(v, "value");
         var qr = v.movePointRight(scale).divideAndRemainder(BigDecimal.valueOf(tickM));
         if (qr[1].signum() != 0)

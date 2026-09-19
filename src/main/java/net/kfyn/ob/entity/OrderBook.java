@@ -4,7 +4,6 @@ import java.util.*;
 
 /**
  * Single-threaded. Ticks must originate from this book's instrument
- * (pxTicks/qtyTicks) or the book's ordering is undefined.
  */
 public class OrderBook {
     private final Instrument instrument;
