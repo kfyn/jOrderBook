@@ -64,10 +64,10 @@ leaves this open — the rule is deterministic and covered by tests.
 | Path | Contents |
 |---|---|
 | `src/main/java/net/kfyn/ob/entity` | Order, Trade, Instrument, OrderBook abstractions |
-| `src/main/java/net/kfyn/ob/engine` | Price/time order book, continuous matching engine, auction uncrossing engine |
+| `src/main/java/net/kfyn/ob/engine` | Price/time order book and auction uncrossing engine |
 | `src/main/java/net/kfyn/ob/Main.java` | Demo: uncrosses the book from the problem statement |
 | `src/test/java` | JUnit 6 tests incl. a randomized auction-vs-reference property test |
-| `src/jmh/java` | JMH benchmarks (separate source set; JMH never leaks into main/test code) |
+| `src/jmh/java` | JMH benchmarks of the auction uncross (separate source set; JMH never leaks into main/test code) |
 
 External dependencies: JUnit 6 (test scope only) and JMH (benchmark source
 set only). The main and test code uses only the JDK.
