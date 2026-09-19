@@ -22,18 +22,28 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     @Override public AuctionResult uncross(List<Order> bids, List<Order> asks) {
         Objects.requireNonNull(bids, "bids");
         Objects.requireNonNull(asks, "asks");
+        // Validate sides and find the extreme prices in the same pass.
+        long bestBid = Long.MIN_VALUE;
         for (Order b : bids) {
             if (b.side() != Side.BUY) throw new IllegalArgumentException("bid side: " + b.side());
+            if (b.pxTicks() > bestBid) bestBid = b.pxTicks();
         }
+        long bestAsk = Long.MAX_VALUE;
         for (Order a : asks) {
             if (a.side() != Side.SELL) throw new IllegalArgumentException("ask side: " + a.side());
+            if (a.pxTicks() < bestAsk) bestAsk = a.pxTicks();
+        }
+        if (bids.isEmpty() || asks.isEmpty()) {
+            return uncrossed(bids, asks);
+        }
+        // Early exit: a clearing price needs bids >= p and asks <= p, so an
+        // uncrossed book (best bid below best ask) cannot trade at any price.
+        if (bestBid < bestAsk) {
+            return uncrossed(bids, asks);
         }
 
         TreeMap<Long, Long> bidQty = aggregate(bids);
         TreeMap<Long, Long> askQty = aggregate(asks);
-        if (bidQty.isEmpty() || askQty.isEmpty()) {
-            return uncrossed(bids, asks);
-        }
 
         TreeSet<Long> prices = new TreeSet<>(bidQty.keySet());
         prices.addAll(askQty.keySet());
@@ -136,9 +146,13 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     }
 
     private static AuctionResult uncrossed(List<Order> bids, List<Order> asks) {
-        List<Order> leftovers = new ArrayList<>(bids);
+        // Ownership contract: the record defensively copies its lists, so
+        // hand it a pre-immutable list and the record's copyOf is a no-op —
+        // exactly one copy of the combined leftovers is made on this path.
+        List<Order> leftovers = new ArrayList<>(bids.size() + asks.size());
+        leftovers.addAll(bids);
         leftovers.addAll(asks);
-        return new AuctionResult(OptionalLong.empty(), 0, List.of(), leftovers);
+        return new AuctionResult(OptionalLong.empty(), 0, List.of(), List.copyOf(leftovers));
     }
 
     private static TreeMap<Long, Long> aggregate(List<Order> orders) {

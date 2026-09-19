@@ -107,9 +107,10 @@ tasks.register<JavaExec>("jmhSmoke") {
     val outDir = layout.buildDirectory.dir("jmh").get().asFile
     doFirst { if (!outDir.exists()) outDir.mkdirs() }
     args(
-        "-i", "1", "-wi", "1", "-f", "1", "-t", "1",
+        "-i", "3", "-wi", "2", "-f", "2", "-t", "1",
         "-r", "1s", "-w", "1s",
         "-foe", "true",
+        "-prof", "gc",
         "-rf", "json", "-rff", outDir.resolve("results.json").absolutePath
     )
 }
