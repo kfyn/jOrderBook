@@ -23,14 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * PriceTimeAuctionEngine uncross benchmarks. One @Param axis:
- *  - levels: distinct price levels per side. uncrossCrossed builds a
- *    symmetric overlapping ladder (best bid == best ask), so every run
- *    executes the full price-discovery sweep and the FIFO allocation;
- *    uncrossNoCross books the same size with a wide gap, exercising the
- *    sweep + no-trade exit path.
- */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 3, time = 1)
