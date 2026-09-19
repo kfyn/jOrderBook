@@ -20,11 +20,11 @@ public class OrderBook {
     }
 
     public void add(Order o) {
-        side(o.side()).computeIfAbsent(o.pxT(), p -> new ArrayDeque<>()).addLast(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addLast(o);
     }
 
     public void requeue(Order o) {
-        side(o.side()).computeIfAbsent(o.pxT(), p -> new ArrayDeque<>()).addFirst(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addFirst(o);
     }
 
     public Map.Entry<Long, ArrayDeque<Order>> bestBid() {

@@ -11,8 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OrderBookTest {
 
-    private static Order order(long id, Side side, long pxT, long qtyT) {
-        return new Order(id, side, pxT, qtyT, OrderType.LIMIT);
+    private static Order order(long id, Side side, long pxTicks, long qtyTicks) {
+        return new Order(id, side, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
     @Nested
@@ -28,7 +28,7 @@ class OrderBookTest {
         @Test
         void acceptsNegativePx() {
             var o = order(1, Side.BUY, -100, 5);
-            assertEquals(-100L, o.pxT());
+            assertEquals(-100L, o.pxTicks());
         }
 
         @Test
@@ -53,7 +53,7 @@ class OrderBookTest {
         @Test
         void acceptsNegativePx() {
             var t = new Trade(1, 2, -100, 5);
-            assertEquals(-100L, t.pxT());
+            assertEquals(-100L, t.pxTicks());
         }
     }
 
@@ -169,9 +169,9 @@ class OrderBookTest {
         @Test
         void boundaryConversionThroughBook() {
             var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
-            long pxT = book.instrument().pxTicks(new BigDecimal("5000.00"));
-            book.add(order(1, Side.BUY, pxT, book.instrument().qtyTicks(new BigDecimal("2.000"))));
-            assertEquals(0, new BigDecimal("5000.00").compareTo(book.instrument().pxValue(pxT)));
+            long pxTicks = book.instrument().pxTicks(new BigDecimal("5000.00"));
+            book.add(order(1, Side.BUY, pxTicks, book.instrument().qtyTicks(new BigDecimal("2.000"))));
+            assertEquals(0, new BigDecimal("5000.00").compareTo(book.instrument().pxValue(pxTicks)));
         }
 
         @Test

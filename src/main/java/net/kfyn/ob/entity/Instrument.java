@@ -8,11 +8,11 @@ import java.util.Objects;
  * tick = tickM * 10^-scale; ticks are exact multiples of the tick.
  * Price may be negative (spread products); quantity must be positive.
  */
-public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM, int qtyScale) {
+public record Instrument(String symbol, long pxTickMantissa, int pxScale, long qtyTickMantissa, int qtyScale) {
 
     public Instrument {
         if (symbol == null || symbol.isBlank()) throw new IllegalArgumentException("symbol: " + symbol);
-        if (pxTickM <= 0 || qtyTickM <= 0) throw new IllegalArgumentException("tick mantissa must be positive");
+        if (pxTickMantissa <= 0 || qtyTickMantissa <= 0) throw new IllegalArgumentException("tick mantissa must be positive");
         if (pxScale < 0 || pxScale > 18 || qtyScale < 0 || qtyScale > 18)
             throw new IllegalArgumentException("tick scale out of range");
     }
@@ -22,21 +22,21 @@ public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM
     }
 
     public long pxTicks(BigDecimal v) {
-        return ticks(v, pxTickM, pxScale, symbol);
+        return ticks(v, pxTickMantissa, pxScale, symbol);
     }
 
     public long qtyTicks(BigDecimal v) {
-        long t = ticks(v, qtyTickM, qtyScale, symbol);
+        long t = ticks(v, qtyTickMantissa, qtyScale, symbol);
         if (t <= 0) throw new IllegalArgumentException(symbol + ": qty must be positive: " + v);
         return t;
     }
 
     public BigDecimal pxValue(long t) {
-        return value(t, pxTickM, pxScale);
+        return value(t, pxTickMantissa, pxScale);
     }
 
     public BigDecimal qtyValue(long t) {
-        return value(t, qtyTickM, qtyScale);
+        return value(t, qtyTickMantissa, qtyScale);
     }
 
     private static long ticks(BigDecimal v, long tickM, int scale, String symbol) {

@@ -37,24 +37,24 @@ class InstrumentTest {
         @Test
         void parsesDecimalTickStrings() {
             var i = Instrument.of("BTCUSDT", "0.10", "0.00100");
-            assertEquals(1L, i.pxTickM());
+            assertEquals(1L, i.pxTickMantissa());
             assertEquals(1, i.pxScale());
-            assertEquals(1L, i.qtyTickM());
+            assertEquals(1L, i.qtyTickMantissa());
             assertEquals(3, i.qtyScale());
         }
 
         @Test
         void parsesIntegerTickStrings() {
             var i = Instrument.of("JPY", "1", "1");
-            assertEquals(1L, i.pxTickM());
+            assertEquals(1L, i.pxTickMantissa());
             assertEquals(0, i.pxScale());
         }
 
         @Test
         void parsesScientificNotationTicks() {
             assertEquals(3, Instrument.of("X", "1E-3", "1").pxScale());
-            assertEquals(1000L, Instrument.of("X", "1E+3", "1").pxTickM());
-            assertEquals(1L, Instrument.of("X", "10E-1", "1").pxTickM());
+            assertEquals(1000L, Instrument.of("X", "1E+3", "1").pxTickMantissa());
+            assertEquals(1L, Instrument.of("X", "10E-1", "1").pxTickMantissa());
         }
     }
 
@@ -108,10 +108,10 @@ class InstrumentTest {
 
         @Test
         void valueRoundTrip() {
-            long[] pxT = {1, 2, 50000, -50000, 999_999_999_999L};
-            for (long t : pxT) assertEquals(t, btc.pxTicks(btc.pxValue(t)));
-            long[] qtyT = {1, 2, 123_000};
-            for (long t : qtyT) assertEquals(t, btc.qtyTicks(btc.qtyValue(t)));
+            long[] pxTicks = {1, 2, 50000, -50000, 999_999_999_999L};
+            for (long t : pxTicks) assertEquals(t, btc.pxTicks(btc.pxValue(t)));
+            long[] qtyTicks = {1, 2, 123_000};
+            for (long t : qtyTicks) assertEquals(t, btc.qtyTicks(btc.qtyValue(t)));
         }
 
         @Test
