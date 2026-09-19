@@ -59,6 +59,12 @@ with the smallest demand/supply imbalance; on equal imbalance the highest tied
 price under pure buy pressure, otherwise the lowest. The problem statement
 leaves this open — the rule is deterministic and covered by tests.
 
+`PriceTimeOrderBook` runs the same uncross directly on the resting book:
+`uncross()` is a pure query (no state change); `close()` additionally settles
+the book to the auction outcome — fully filled orders removed, partially
+filled orders reduced (new instances, same id), unfilled orders left resting —
+and returns the result.
+
 ## Layout
 
 | Path | Contents |

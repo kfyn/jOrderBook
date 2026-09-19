@@ -70,8 +70,9 @@ class PriceTimeAuctionEngineTest {
 
         @Test
         void askOnlyPriceCanWinViaVolume() {
-            // union rule (full argmax over bid u ask prices):
-            // p=90 (an ask price) trades 8; the best bid-only candidate, 95, trades only 6
+            // union rule (full argmax over bid u ask prices): 90 and 95 tie on
+            // volume 8 with imbalance 92 (d=8 < s=100: sell pressure) -> lowest
+            // price wins, 90, an ask-only candidate (95 would trade 8 too, not 6)
             var r = auction.uncross(
                     List.of(buy(1, 100, 5), buy(2, 95, 3)),
                     List.of(sell(3, 98, 6), sell(4, 90, 100)));
@@ -91,7 +92,7 @@ class PriceTimeAuctionEngineTest {
 
         @Test
         void negativePricesCrossNormally() {
-            // p=-200: vol 3 imb 4; p=-100: vol 3 imb 4 -> tie, buy pressure -> higher (-100)
+            // p=-200: d=7 s=0 -> vol 0; p=-100: d=5 s=3 -> vol 3, unique argmax -> -100
             var r = auction.uncross(
                     List.of(buy(1, -100, 5), buy(2, -200, 2)),
                     List.of(sell(3, -100, 3)));
@@ -181,7 +182,7 @@ class PriceTimeAuctionEngineTest {
             var r = auction.uncross(
                     List.of(buy(1, 100, 5), buy(2, 95, 3)),
                     List.of(sell(3, 100, 4)));
-            // p=95: vol 4 imb 4; p=100: vol 4 imb 1 -> min imbalance -> 100
+            // p=95: d=8 s=0 (no ask <= 95) -> vol 0; p=100: d=5 s=4 -> vol 4 imb 1 -> 100
             assertEquals(OptionalLong.of(100), r.priceTicks());
             assertEquals(2, r.leftovers().size());
             assertEquals(1L, r.leftovers().get(0).id());

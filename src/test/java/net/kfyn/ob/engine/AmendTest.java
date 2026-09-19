@@ -21,7 +21,7 @@ class AmendTest {
         return order(id, Side.SELL, pxTicks, qtyTicks);
     }
 
-    private OrderBook book() {
+    private PriceTimeOrderBook book() {
         return new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
     }
 
@@ -215,13 +215,10 @@ class AmendTest {
             // cancel the ask that would never execute
             assertTrue(book.remove(s4));
 
-            var auction = AuctionEngine.priceTime();
-            var bids = new java.util.ArrayList<Order>();
-            book.bids().forEach((px, level) -> level.forEach(bids::add));
-            var asks = new java.util.ArrayList<Order>();
-            book.asks().forEach((px, level) -> level.forEach(asks::add));
-
-            var r = auction.uncross(bids, asks);
+            // uncross the resting book directly; uncross() is a pure query
+            var r = book.uncross();
+            assertEquals(3, book.bids().size(), "book untouched by uncross()");
+            assertEquals(3, book.asks().size(), "book untouched by uncross()");
             // 99 ticks is the max-volume price: demand>=99 = 1102, supply<=99 = 700 -> vol 700
             assertEquals(java.util.OptionalLong.of(99), r.priceTicks());
             assertEquals(700, r.volumeTicks());
