@@ -91,5 +91,5 @@ jmh-full:
       - build/jmh/
     expire_in: 3 months
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - when: never
+    - when: manual
+  allow_failure: true
