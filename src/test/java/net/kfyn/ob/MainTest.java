@@ -14,21 +14,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class MainTest {
 
     @Test
-    @DisplayName("spec example book: matching auction price 99, total matched volume 700")
+    @DisplayName("spec example book: matching auction price 99, total matched volume 900")
     void bookUncrossesAtMaxVolumePrice() {
         AuctionResult r = Main.uncrossBook();
 
         // Candidate prices named by the spec (98, 99, 100); volumes:
         //   vol(px) = min(sum of bid qty with bid px >= px,
         //                 sum of ask qty with ask px <= px)
-        //   vol(98)=500, vol(99)=700, vol(100)=102.
+        //   vol(98)=700, vol(99)=900, vol(100)=100.
         // 99 is the unique argmax — no tie-break needed for the spec example.
         assertEquals(OptionalLong.of(99), r.priceTicks());
-        assertEquals(700, r.volumeTicks());
+        assertEquals(900, r.volumeTicks());
 
-        // FIFO uncrossing at the clearing price: 102@50000 takes 102 of the
-        // 200@99 ask; 1000@99 takes the remaining 98 of that ask and sweeps
-        // all 500 of the 500@96 ask -> 3 trades
+        // FIFO uncrossing at the clearing price: bid #1 (100@100) takes 100 of
+        // the 200@99 ask; bid #2 (1000@99) takes the remaining 100 of that ask
+        // and sweeps all 700 of the 700@98 ask -> 3 trades
         assertEquals(3, r.trades().size());
         assertTrue(r.trades().stream().allMatch(t -> t.pxTicks() == 99));
         assertEquals(r.volumeTicks(),
@@ -39,15 +39,17 @@ class MainTest {
     @DisplayName("per-candidate volumes match the spec's stated candidates (98, 99, 100)")
     void candidateVolumesMatchSpec() {
         // The algorithm considers the union of all bid and ask prices, not
-        // just the spec-named candidates: vol(96)=500, vol(50000)=0.
-        assertEquals(500, volumeAt(96));
-        assertEquals(500, volumeAt(98));
-        assertEquals(700, volumeAt(99));
-        assertEquals(102, volumeAt(100));
+        // just the spec-named candidates: vol(96)=0 (no ask <= 96),
+        // vol(102)=0 (no bid >= 102).
+        assertEquals(0, volumeAt(96));
+        assertEquals(700, volumeAt(98));
+        assertEquals(900, volumeAt(99));
+        assertEquals(100, volumeAt(100));
+        assertEquals(0, volumeAt(102));
     }
 
     @Test
-    @DisplayName("demo run: price 99, volume 700, trades and leftovers printed")
+    @DisplayName("demo run: price 99, volume 900, trades and leftovers printed")
     void demoRunPrintsAuctionOutcome() {
         PrintStream originalOut = System.out;
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -59,7 +61,7 @@ class MainTest {
         }
         String out = buf.toString(StandardCharsets.UTF_8);
         assertTrue(out.contains("matching auction price : 99"), out);
-        assertTrue(out.contains("total matched volume   : 700 share(s)"), out);
+        assertTrue(out.contains("total matched volume   : 900 share(s)"), out);
         assertTrue(out.contains("trades                 : 3"), out);
         assertTrue(out.contains("unfilled (leftover) orders : 3"), out);
     }

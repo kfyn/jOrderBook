@@ -30,12 +30,12 @@ the total matched volume, every trade executed at the clearing price, and the
 unfilled (leftover) orders:
 
 ```
-book: bids 102@50000, 1000@99, 700@98 | asks 100@100, 200@99, 500@96
+book: bids 100@100, 1000@99, 500@96 | asks 50000@102, 200@99, 700@98
 matching auction price : 99
-total matched volume   : 700 share(s)
-imbalance at the price : 1102 buy vs 700 sell -> 402 extra buy share(s)
+total matched volume   : 900 share(s)
+imbalance at the price : 1100 buy vs 900 sell -> 200 extra buy share(s)
 trades                 : 3, all at the clearing price
-  trade    : bid #1 <-> ask #5, 102 share(s) @ 99
+  trade    : bid #1 <-> ask #5, 100 share(s) @ 99
   ...
 unfilled (leftover) orders : 3
   ...

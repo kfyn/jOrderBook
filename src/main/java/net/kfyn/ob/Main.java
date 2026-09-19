@@ -27,8 +27,8 @@ public final class Main {
     }
 
     /**
-     * Spec book: bids 102@50000, 1000@99, 700@98;
-     * asks 100@100, 200@99, 500@96.
+     * Spec book: bids 100@100, 1000@99, 500@96;
+     * asks 50000@102, 200@99, 700@98.
      */
     static AuctionResult uncrossBook() {
         return AuctionEngine.priceTime().uncross(bids(), asks());
@@ -36,16 +36,16 @@ public final class Main {
 
     static List<Order> bids() {
         return List.of(
-                share(1, Side.BUY, 50000, 102),
+                share(1, Side.BUY, 100, 100),
                 share(2, Side.BUY, 99, 1000),
-                share(3, Side.BUY, 98, 700));
+                share(3, Side.BUY, 96, 500));
     }
 
     static List<Order> asks() {
         return List.of(
-                share(4, Side.SELL, 100, 100),
+                share(4, Side.SELL, 102, 50000),
                 share(5, Side.SELL, 99, 200),
-                share(6, Side.SELL, 96, 500));
+                share(6, Side.SELL, 98, 700));
     }
 
     private static Order share(long id, Side side, long pxTicks, long qtyTicks) {
@@ -53,7 +53,7 @@ public final class Main {
     }
 
     private static void printDemo() {
-        System.out.printf("book: bids 102@50000, 1000@99, 700@98 | asks 100@100, 200@99, 500@96%n");
+        System.out.printf("book: bids 100@100, 1000@99, 500@96 | asks 50000@102, 200@99, 700@98%n");
         AuctionResult r = uncrossBook();
         if (r.priceTicks().isEmpty()) {
             System.out.println("no cross: no matching auction price");
