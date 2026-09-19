@@ -3,6 +3,11 @@ package net.kfyn.ob.entity;
 import java.math.BigDecimal;
 import java.util.Objects;
 
+/**
+ * Instrument tick configuration: the units authority for one OrderBook.
+ * tick = tickM * 10^-scale; ticks are exact multiples of the tick.
+ * Price may be negative (spread products); quantity must be positive.
+ */
 public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM, int qtyScale) {
 
     public Instrument {
@@ -17,11 +22,13 @@ public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM
     }
 
     public long pxTicks(BigDecimal v) {
-        return ticks(v, pxTickM, pxScale);
+        return ticks(v, pxTickM, pxScale, symbol);
     }
 
     public long qtyTicks(BigDecimal v) {
-        return ticks(v, qtyTickM, qtyScale);
+        long t = ticks(v, qtyTickM, qtyScale, symbol);
+        if (t <= 0) throw new IllegalArgumentException(symbol + ": qty must be positive: " + v);
+        return t;
     }
 
     public BigDecimal pxValue(long t) {
@@ -32,16 +39,20 @@ public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM
         return value(t, qtyTickM, qtyScale);
     }
 
-    private static long ticks(BigDecimal v, long tickM, int scale) {
+    private static long ticks(BigDecimal v, long tickM, int scale, String symbol) {
         Objects.requireNonNull(v, "value");
-        if (v.signum() < 0) throw new IllegalArgumentException("negative: " + v);
         var qr = v.movePointRight(scale).divideAndRemainder(BigDecimal.valueOf(tickM));
-        if (qr[1].signum() != 0) throw new IllegalArgumentException("off-tick: " + v);
-        return qr[0].longValueExact();
+        if (qr[1].signum() != 0)
+            throw new IllegalArgumentException(symbol + ": off-tick: " + v);
+        try {
+            return qr[0].longValueExact();
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException(symbol + ": value too large: " + v, e);
+        }
     }
 
     private static BigDecimal value(long t, long tickM, int scale) {
-        return BigDecimal.valueOf(t * tickM, scale);
+        return BigDecimal.valueOf(Math.multiplyExact(t, tickM), scale);
     }
 
     private static long tickM(String tick) {

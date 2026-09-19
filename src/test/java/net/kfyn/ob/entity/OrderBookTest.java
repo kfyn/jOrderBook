@@ -11,12 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OrderBookTest {
 
-    private static Order buy(long id, long pxT, long qtyT) {
-        return new Order(id, Side.BUY, pxT, qtyT, OrderType.LIMIT);
-    }
-
-    private static Order sell(long id, long pxT, long qtyT) {
-        return new Order(id, Side.SELL, pxT, qtyT, OrderType.LIMIT);
+    private static Order order(long id, Side side, long pxT, long qtyT) {
+        return new Order(id, side, pxT, qtyT, OrderType.LIMIT);
     }
 
     @Nested
@@ -24,9 +20,19 @@ class OrderBookTest {
     class OrderValidation {
 
         @Test
-        void rejectsNegativeTicksAndNulls() {
-            assertThrows(IllegalArgumentException.class, () -> buy(1, -1, 1));
-            assertThrows(IllegalArgumentException.class, () -> buy(1, 1, -1));
+        void rejectsNonPositiveQty() {
+            assertThrows(IllegalArgumentException.class, () -> order(1, Side.BUY, 100, 0));
+            assertThrows(IllegalArgumentException.class, () -> order(1, Side.BUY, 100, -5));
+        }
+
+        @Test
+        void acceptsNegativePx() {
+            var o = order(1, Side.BUY, -100, 5);
+            assertEquals(-100L, o.pxT());
+        }
+
+        @Test
+        void rejectsNullEnums() {
             assertThrows(IllegalArgumentException.class,
                     () -> new Order(1, null, 1, 1, OrderType.LIMIT));
             assertThrows(IllegalArgumentException.class,
@@ -35,15 +41,36 @@ class OrderBookTest {
     }
 
     @Nested
+    @DisplayName("trade validation")
+    class TradeValidation {
+
+        @Test
+        void rejectsNonPositiveQty() {
+            assertThrows(IllegalArgumentException.class, () -> new Trade(1, 2, 100, 0));
+            assertThrows(IllegalArgumentException.class, () -> new Trade(1, 2, 100, -5));
+        }
+
+        @Test
+        void acceptsNegativePx() {
+            var t = new Trade(1, 2, -100, 5);
+            assertEquals(-100L, t.pxT());
+        }
+    }
+
+    @Nested
     @DisplayName("book operations")
     class BookOps {
 
+        OrderBook book() {
+            return new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+        }
+
         @Test
         void addGroupsByPriceLevelAndKeepsFifoOrder() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
-            book.add(buy(1, 100, 5));
-            book.add(buy(2, 100, 7));
-            book.add(buy(3, 99, 1));
+            var book = book();
+            book.add(order(1, Side.BUY, 100, 5));
+            book.add(order(2, Side.BUY, 100, 7));
+            book.add(order(3, Side.BUY, 99, 1));
             var level = book.bids().get(100L);
             assertEquals(2, level.size());
             assertEquals(1, level.peekFirst().id());
@@ -53,29 +80,49 @@ class OrderBookTest {
 
         @Test
         void requeueMovesOrderToFrontOfLevel() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
-            book.add(buy(1, 100, 5));
-            book.add(buy(2, 100, 7));
-            book.requeue(buy(1, 100, 5));
+            var book = book();
+            book.add(order(1, Side.BUY, 100, 5));
+            book.add(order(2, Side.BUY, 100, 7));
+            book.requeue(order(1, Side.BUY, 100, 5));
             assertEquals(1, book.bids().get(100L).peekFirst().id());
         }
 
         @Test
         void bestBidIsHighestAskIsLowest() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
-            book.add(buy(1, 98, 5));
-            book.add(buy(2, 101, 5));
-            book.add(sell(3, 103, 5));
-            book.add(sell(4, 102, 5));
+            var book = book();
+            book.add(order(1, Side.BUY, 98, 5));
+            book.add(order(2, Side.BUY, 101, 5));
+            book.add(order(3, Side.SELL, 103, 5));
+            book.add(order(4, Side.SELL, 102, 5));
             assertEquals(101L, book.bestBid().getKey());
             assertEquals(102L, book.bestAsk().getKey());
         }
 
         @Test
         void emptyBookBestIsNull() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = book();
             assertNull(book.bestBid());
             assertNull(book.bestAsk());
+        }
+
+        @Test
+        void bestSkipsDrainedLevelsAndPrunesThem() {
+            var book = book();
+            book.add(order(1, Side.BUY, 101, 5));
+            book.add(order(2, Side.BUY, 99, 5));
+            book.bids().get(101L).clear();     // drain top level via read view
+            var best = book.bestBid();
+            assertNotNull(best);
+            assertEquals(99L, best.getKey());  // drained level skipped
+            assertFalse(book.bids().containsKey(101L));  // ...and pruned
+        }
+
+        @Test
+        void negativePriceLevels() {
+            var book = new OrderBook(Instrument.of("SPREAD", "0.10", "1"));
+            book.add(order(1, Side.SELL, -100, 5));
+            book.add(order(2, Side.SELL, -200, 5));
+            assertEquals(-200L, book.bestAsk().getKey());   // best ask = lowest price
         }
 
         @Test
@@ -85,7 +132,30 @@ class OrderBookTest {
     }
 
     @Nested
-    @DisplayName("cross-instrument safety")
+    @DisplayName("view immutability")
+    class Views {
+
+        @Test
+        void bidsAndAsksAreUnmodifiable() {
+            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(order(1, Side.BUY, 100, 5));
+            assertThrows(UnsupportedOperationException.class,
+                    () -> book.bids().put(101L, new java.util.ArrayDeque<>()));
+            assertThrows(UnsupportedOperationException.class,
+                    () -> book.asks().remove(100L));
+        }
+
+        @Test
+        void levelDequesRemainLiveThroughView() {
+            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(order(1, Side.BUY, 100, 5));
+            book.bids().get(100L).clear();   // deque deliberately live: engine drains levels through best
+            assertTrue(book.bids().get(100L).isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("units")
     class Units {
 
         @Test
@@ -100,7 +170,7 @@ class OrderBookTest {
         void boundaryConversionThroughBook() {
             var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             long pxT = book.instrument().pxTicks(new BigDecimal("5000.00"));
-            book.add(buy(1, pxT, book.instrument().qtyTicks(new BigDecimal("2.000"))));
+            book.add(order(1, Side.BUY, pxT, book.instrument().qtyTicks(new BigDecimal("2.000"))));
             assertEquals(0, new BigDecimal("5000.00").compareTo(book.instrument().pxValue(pxT)));
         }
 
@@ -109,8 +179,8 @@ class OrderBookTest {
             var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             var rnd = new Random(20260919L);
             for (int i = 0; i < 10_000; i++) {
-                long t1 = rnd.nextLong(0, Long.MAX_VALUE);
-                long t2 = rnd.nextLong(0, Long.MAX_VALUE);
+                long t1 = rnd.nextLong(Long.MIN_VALUE, Long.MAX_VALUE);
+                long t2 = rnd.nextLong(Long.MIN_VALUE, Long.MAX_VALUE);
                 var v1 = book.instrument().pxValue(t1);
                 var v2 = book.instrument().pxValue(t2);
                 assertEquals(Integer.signum(v1.compareTo(v2)), Integer.signum(Long.compare(t1, t2)));
