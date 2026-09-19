@@ -19,14 +19,21 @@ test:
       - .gradle/caches
     policy: pull-push
   script:
-    - ./gradlew --no-daemon test
+    - ./gradlew --no-daemon test jmhTest
   artifacts:
     when: always
     reports:
-      junit: build/test-results/test/TEST-*.xml
+      junit:
+        - build/test-results/test/TEST-*.xml
+        - build/test-results/jmhTest/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: build/reports/jacoco/test/jacocoTestReport.xml
     paths:
       - build/reports/tests/test/
+      - build/reports/jacoco/
     expire_in: 1 week
+  coverage: '/Coverage:\s*([0-9.]+)%/'
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
