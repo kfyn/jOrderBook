@@ -13,6 +13,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -22,14 +23,15 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.concurrent.TimeUnit;
 
 /**
- * MatchingEngine hot-path benchmarks.
- * Benchmarks:
- *  - submitResting:   submit a non-crossing order (rest path, book grows
- *                     in one price level — per-op cost stays O(1))
- *  - submitCrossing:  full fill against one resting ask (cross path);
- *                     the ask is re-added to keep the book invariant
+ * MatchingEngine hot-path benchmarks. Each benchmark has one @Param axis:
+ *  - submitResting:   non-crossing submit (rest path); the book spreads over
+ *                     `priceLevels` prices so level-tree depth grows with it
+ *  - submitCrossing:  buy that sweeps and fully fills `levels` resting asks
+ *                     (one qty-1 order per level, 100..100+levels-1); the
+ *                     ask levels are re-added to keep the book invariant
  *  - cancelResubmit:  cancel an open order and submit a fresh one in its
- *                     place (lifetime-unique ids, book size constant)
+ *                     place (lifetime-unique ids, constant book size =
+ *                     `bookSize`; level removal is O(level size))
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -45,9 +47,12 @@ public class MatchingEngineBenchmark {
         return new SimpleOrder(id, side, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
-    /** Empty book: every submitted order rests. */
+    /** Empty book: every submitted order rests. @Param: number of price levels. */
     @State(Scope.Thread)
     public static class RestingState {
+        @Param({"1", "16", "256"})
+        public int priceLevels;
+
         PriceTimeOrderBook book;
         PriceTimeMatchingEngine engine;
         long nextId;
@@ -60,9 +65,12 @@ public class MatchingEngineBenchmark {
         }
     }
 
-    /** One resting ask at 100: every submitted buy crosses and fully fills. */
+    /** `levels` resting asks at 100..100+levels-1, qty 1: every buy sweeps them all. */
     @State(Scope.Thread)
     public static class CrossingState {
+        @Param({"1", "8", "32"})
+        public int levels;
+
         PriceTimeOrderBook book;
         PriceTimeMatchingEngine engine;
         long nextId;
@@ -72,14 +80,17 @@ public class MatchingEngineBenchmark {
             book = new PriceTimeOrderBook(BTC);
             engine = new PriceTimeMatchingEngine(book);
             nextId = 1;
-            book.add(order(nextId, Side.SELL, 100, 1));
+            for (int i = 0; i < levels; i++) {
+                book.add(order(nextId++, Side.SELL, 100 + i, 1));
+            }
         }
     }
 
-    /** 1024 open bids at 100: cancel cycle + fresh submit keeps size constant. */
+    /** `bookSize` open bids at 100: cancel cycle + fresh submit keeps size constant. */
     @State(Scope.Thread)
     public static class CancelState {
-        static final long OPEN = 1024;
+        @Param({"64", "1024", "8192"})
+        public long bookSize;
 
         PriceTimeOrderBook book;
         PriceTimeMatchingEngine engine;
@@ -90,9 +101,9 @@ public class MatchingEngineBenchmark {
         public void up() {
             book = new PriceTimeOrderBook(BTC);
             engine = new PriceTimeMatchingEngine(book);
-            nextId = OPEN;
+            nextId = bookSize;
             cursor = 0;
-            for (long id = 1; id <= OPEN; id++) {
+            for (long id = 1; id <= bookSize; id++) {
                 engine.submit(order(id, Side.BUY, 100, 1));
             }
         }
@@ -101,20 +112,23 @@ public class MatchingEngineBenchmark {
     @Benchmark
     public long submitResting(RestingState s) {
         long id = ++s.nextId;
-        return s.engine.submit(order(id, Side.BUY, 90, 1)).remainingQtyTicks();
+        return s.engine.submit(order(id, Side.BUY, 90 + (int) ((id - 1) % s.priceLevels), 1))
+                .remainingQtyTicks();
     }
 
     @Benchmark
     public long submitCrossing(CrossingState s) {
         long buyId = ++s.nextId;
-        long trades = s.engine.submit(order(buyId, Side.BUY, 100, 1)).trades().size();
-        s.book.add(order(++s.nextId, Side.SELL, 100, 1));   // restore invariant
+        long trades = s.engine.submit(order(buyId, Side.BUY, 100 + s.levels, s.levels)).trades().size();
+        for (int i = 0; i < s.levels; i++) {
+            s.book.add(order(s.nextId++, Side.SELL, 100 + i, 1));   // restore invariant
+        }
         return trades;
     }
 
     @Benchmark
     public long cancelResubmit(CancelState s) {
-        long canceled = s.cursor++ % CancelState.OPEN + 1;
+        long canceled = s.cursor++ % s.bookSize + 1;
         boolean ok = s.engine.cancel(canceled);
         long freshId = ++s.nextId;
         s.engine.submit(order(freshId, Side.BUY, 100, 1));
