@@ -19,13 +19,12 @@ test:
       - .gradle/caches
     policy: pull-push
   script:
-    - ./gradlew --no-daemon test jmhTest
+    - ./gradlew --no-daemon test
   artifacts:
     when: always
     reports:
       junit:
         - build/test-results/test/TEST-*.xml
-        - build/test-results/jmhTest/TEST-*.xml
       coverage_report:
         coverage_format: jacoco
         path: build/reports/jacoco/test/jacocoTestReport.xml

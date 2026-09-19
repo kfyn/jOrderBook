@@ -26,11 +26,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.test {
-    useJUnitPlatform()
-    testLogging { events("passed", "failed", "skipped") }
-    finalizedBy(tasks.jacocoTestReport)
-}
+// Minimum line coverage enforced by `gradle test` (CI gate).
 
 sourceSets {
     create("jmh") {
@@ -43,20 +39,22 @@ sourceSets {
 dependencies {
     add("jmhImplementation", "org.openjdk.jmh:jmh-core:1.37")
     add("jmhAnnotationProcessor", "org.openjdk.jmh:jmh-generator-annprocess:1.37")
-    add("jmhImplementation", platform("org.junit:junit-bom:6.0.0"))
-    add("jmhImplementation", "org.junit.jupiter:junit-jupiter")
-    add("jmhRuntimeOnly", "org.junit.platform:junit-platform-launcher")
 }
 
 val jmhClasspath = sourceSets["jmh"].runtimeClasspath
 
-tasks.register<Test>("jmhTest") {
-    group = "verification"
-    description = "JMH benchmarks as JUnit dynamic tests (surfaced in the GitLab MR tests widget)."
-    testClassesDirs = sourceSets["jmh"].output.classesDirs
-    classpath = jmhClasspath
+// Runs the demo (`./gradlew run`).
+tasks.register<JavaExec>("run") {
+    group = "application"
+    description = "Run the demo: uncross the spec book and print the results."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "net.kfyn.ob.Main"
+}
+
+tasks.test {
     useJUnitPlatform()
     testLogging { events("passed", "failed", "skipped") }
+    finalizedBy(tasks.jacocoTestReport)
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
@@ -67,30 +65,23 @@ tasks.named<JacocoReport>("jacocoTestReport") {
     // resolved at configuration time; the action captures only the File (configuration-cache safe)
     val xmlFile = reports.xml.outputLocation.get().asFile
     doLast {
-        // Print a machine-parseable percentage for GitLab's `coverage:` regex.
+        // Print a machine-parseable percentage for GitLab's `coverage:` regex,
+        // then enforce the gate. The report-level LINE counter is the last
+        // `type="LINE"` counter in the XML document.
+        val coverageGate = 90.0
         if (!xmlFile.exists()) return@doLast
-        val reader = javax.xml.stream.XMLInputFactory.newInstance().createXMLStreamReader(xmlFile.inputStream())
-        var covered = 0L
-        var missed = 0L
-        while (reader.hasNext()) {
-            if (reader.next() == javax.xml.stream.XMLStreamConstants.START_ELEMENT
-                && reader.localName == "counter"
-                && reader.getAttributeValue(null, "type") == "LINE") {
-                covered = reader.getAttributeValue(null, "covered").toLong()
-                missed = reader.getAttributeValue(null, "missed").toLong()
-            }
-        }
-        reader.close()
+        val reportText = xmlFile.readText()
+        val covered = Regex("""<counter type="LINE" missed="\d+" covered="(\d+)"/>""")
+            .findAll(reportText).map { it.groupValues[1].toLong() }.lastOrNull() ?: 0L
+        val missed = Regex("""<counter type="LINE" missed="(\d+)" covered="\d+"/>""")
+            .findAll(reportText).map { it.groupValues[1].toLong() }.lastOrNull() ?: 0L
         val pct = if (covered + missed == 0L) 0.0 else 100.0 * covered / (covered + missed)
         val pctStr = String.format(Locale.ROOT, "%.2f", pct)
         println("Coverage: $pctStr%")
+        if (pct < coverageGate) {
+            throw GradleException(String.format(Locale.ROOT, "line coverage %.2f%% below gate %.2f%%", pct, coverageGate))
+        }
     }
-}
-
-tasks.test {
-    useJUnitPlatform()
-    testLogging { events("passed", "failed", "skipped") }
-    finalizedBy(tasks.jacocoTestReport)
 }
 
 tasks.register<JavaExec>("jmh") {
