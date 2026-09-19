@@ -1,5 +1,6 @@
-package net.kfyn.ob.entity;
+package net.kfyn.ob.engine;
 
+import net.kfyn.ob.entity.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -7,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Random;
-
-import net.kfyn.ob.impl.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 

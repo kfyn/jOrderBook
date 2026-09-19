@@ -1,11 +1,11 @@
-package net.kfyn.ob.impl;
+package net.kfyn.ob.engine;
 
 import net.kfyn.ob.entity.Order;
 import net.kfyn.ob.entity.OrderBook;
 import net.kfyn.ob.entity.Side;
 import net.kfyn.ob.entity.Trade;
-import net.kfyn.ob.engine.MatchResult;
-import net.kfyn.ob.engine.MatchingEngine;
+import net.kfyn.ob.entity.SimpleOrder;
+import net.kfyn.ob.entity.SimpleTrade;
 
 import java.util.*;
 
@@ -15,12 +15,12 @@ import java.util.*;
  * operate on a given OrderBook. Order ids must be unique for the lifetime
  * of the engine. Single-threaded.
  */
-public class SimpleMatchingEngine implements MatchingEngine {
+public class PriceTimeMatchingEngine implements MatchingEngine {
     private final OrderBook book;
     private final Map<Long, Order> open = new HashMap<>();
     private final Set<Long> submitted = new HashSet<>();
 
-    public SimpleMatchingEngine(OrderBook book) {
+    public PriceTimeMatchingEngine(OrderBook book) {
         this.book = Objects.requireNonNull(book, "book");
     }
 

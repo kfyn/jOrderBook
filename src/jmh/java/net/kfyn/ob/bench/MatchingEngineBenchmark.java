@@ -1,12 +1,11 @@
 package net.kfyn.ob.bench;
 
-import net.kfyn.ob.engine.MatchingEngine;
 import net.kfyn.ob.entity.Instrument;
 import net.kfyn.ob.entity.OrderType;
 import net.kfyn.ob.entity.Side;
-import net.kfyn.ob.impl.PriceTimeOrderBook;
-import net.kfyn.ob.impl.SimpleMatchingEngine;
-import net.kfyn.ob.impl.SimpleOrder;
+import net.kfyn.ob.engine.PriceTimeOrderBook;
+import net.kfyn.ob.engine.PriceTimeMatchingEngine;
+import net.kfyn.ob.entity.SimpleOrder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -23,10 +22,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.concurrent.TimeUnit;
 
 /**
- * MatchingEngine hot-path benchmarks. Matching is single-threaded by
- * design, so each benchmark runs on one thread with per-iteration state
- * (fresh book + engine) so accumulated positions cannot skew numbers.
- *
+ * MatchingEngine hot-path benchmarks.
  * Benchmarks:
  *  - submitResting:   submit a non-crossing order (rest path, book grows
  *                     in one price level — per-op cost stays O(1))
@@ -53,13 +49,13 @@ public class MatchingEngineBenchmark {
     @State(Scope.Thread)
     public static class RestingState {
         PriceTimeOrderBook book;
-        SimpleMatchingEngine engine;
+        PriceTimeMatchingEngine engine;
         long nextId;
 
         @Setup(Level.Iteration)
         public void up() {
             book = new PriceTimeOrderBook(BTC);
-            engine = new SimpleMatchingEngine(book);
+            engine = new PriceTimeMatchingEngine(book);
             nextId = 0;
         }
     }
@@ -68,13 +64,13 @@ public class MatchingEngineBenchmark {
     @State(Scope.Thread)
     public static class CrossingState {
         PriceTimeOrderBook book;
-        SimpleMatchingEngine engine;
+        PriceTimeMatchingEngine engine;
         long nextId;
 
         @Setup(Level.Iteration)
         public void up() {
             book = new PriceTimeOrderBook(BTC);
-            engine = new SimpleMatchingEngine(book);
+            engine = new PriceTimeMatchingEngine(book);
             nextId = 1;
             book.add(order(nextId, Side.SELL, 100, 1));
         }
@@ -86,14 +82,14 @@ public class MatchingEngineBenchmark {
         static final long OPEN = 1024;
 
         PriceTimeOrderBook book;
-        SimpleMatchingEngine engine;
+        PriceTimeMatchingEngine engine;
         long nextId;
         long cursor;
 
         @Setup(Level.Iteration)
         public void up() {
             book = new PriceTimeOrderBook(BTC);
-            engine = new SimpleMatchingEngine(book);
+            engine = new PriceTimeMatchingEngine(book);
             nextId = OPEN;
             cursor = 0;
             for (long id = 1; id <= OPEN; id++) {

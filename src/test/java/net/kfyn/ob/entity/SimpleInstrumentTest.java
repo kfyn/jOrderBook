@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
-import net.kfyn.ob.impl.*;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class SimpleInstrumentTest {

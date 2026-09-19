@@ -1,6 +1,4 @@
-package net.kfyn.ob.impl;
-
-import net.kfyn.ob.entity.Instrument;
+package net.kfyn.ob.entity;
 
 import java.math.BigDecimal;
 import java.util.Objects;

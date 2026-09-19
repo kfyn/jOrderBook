@@ -1,8 +1,4 @@
-package net.kfyn.ob.impl;
-
-import net.kfyn.ob.entity.Order;
-import net.kfyn.ob.entity.OrderType;
-import net.kfyn.ob.entity.Side;
+package net.kfyn.ob.entity;
 
 public record SimpleOrder(long id, Side side, long pxTicks, long qtyTicks, OrderType orderType) implements Order {
     public SimpleOrder {

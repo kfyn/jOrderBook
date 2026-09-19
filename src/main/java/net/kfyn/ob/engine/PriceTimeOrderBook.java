@@ -1,4 +1,4 @@
-package net.kfyn.ob.impl;
+package net.kfyn.ob.engine;
 
 import net.kfyn.ob.entity.Instrument;
 import net.kfyn.ob.entity.Order;
@@ -22,12 +22,12 @@ public class PriceTimeOrderBook implements OrderBook {
 
     @Override public void add(Order o) {
         Objects.requireNonNull(o, "order");
-        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addLast(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addLast(o);
     }
 
     @Override public void requeue(Order o) {
         Objects.requireNonNull(o, "order");
-        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addFirst(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addFirst(o);
     }
 
     @Override public boolean remove(Order o) {

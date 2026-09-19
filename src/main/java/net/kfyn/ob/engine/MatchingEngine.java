@@ -13,6 +13,6 @@ public interface MatchingEngine {
     int openCount();
 
     static MatchingEngine over(OrderBook book) {
-        return new net.kfyn.ob.impl.SimpleMatchingEngine(book);
+        return new PriceTimeMatchingEngine(book);
     }
 }

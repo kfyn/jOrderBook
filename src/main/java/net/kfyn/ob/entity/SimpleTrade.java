@@ -1,6 +1,4 @@
-package net.kfyn.ob.impl;
-
-import net.kfyn.ob.entity.Trade;
+package net.kfyn.ob.entity;
 
 public record SimpleTrade(long bidOrderId, long askOrderId, long pxTicks, long qtyTicks) implements Trade {
     public SimpleTrade {
