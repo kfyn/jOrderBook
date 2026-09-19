@@ -8,13 +8,8 @@ java {
     }
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
-}
-
-tasks.test {
-    useJUnitPlatform()
-    testLogging { events("passed", "failed", "skipped") }
+repositories {
+    mavenCentral()
 }
 
 dependencies {
@@ -23,6 +18,11 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-repositories {
-    mavenCentral()
+tasks.test {
+    useJUnitPlatform()
+    testLogging { events("passed", "failed", "skipped") }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
