@@ -55,23 +55,23 @@ public class PriceTimeOrderBook implements OrderBook {
         return null;
     }
 
-    @Override public Map.Entry<Long, ArrayDeque<Order>> bestBid() {
+    @Override public Map.Entry<Long, ? extends Collection<Order>> bestBid() {
         return best(bids);
     }
 
-    @Override public Map.Entry<Long, ArrayDeque<Order>> bestAsk() {
+    @Override public Map.Entry<Long, ? extends Collection<Order>> bestAsk() {
         return best(asks);
     }
 
-    @Override public NavigableMap<Long, ArrayDeque<Order>> bids() {
+    @Override public SortedMap<Long, ? extends Collection<Order>> bids() {
         return Collections.unmodifiableNavigableMap(bids);
     }
 
-    @Override public NavigableMap<Long, ArrayDeque<Order>> asks() {
+    @Override public SortedMap<Long, ? extends Collection<Order>> asks() {
         return Collections.unmodifiableNavigableMap(asks);
     }
 
-    private Map.Entry<Long, ArrayDeque<Order>> best(TreeMap<Long, ArrayDeque<Order>> side) {
+    private Map.Entry<Long, ? extends Collection<Order>> best(TreeMap<Long, ArrayDeque<Order>> side) {
         while (!side.isEmpty()) {
             var e = side.firstEntry();
             if (!e.getValue().isEmpty()) return e;

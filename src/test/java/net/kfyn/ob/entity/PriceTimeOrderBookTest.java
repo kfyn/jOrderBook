@@ -84,10 +84,9 @@ class PriceTimeOrderBookTest {
             book.add(order(3, Side.BUY, 99, 1));
             var level = book.bids().get(100L);
             assertEquals(2, level.size());
-            assert level.peekFirst() != null;
-            assertEquals(1, level.peekFirst().id());
-            assert level.peekLast() != null;
-            assertEquals(2, level.peekLast().id());
+            var it = level.iterator();
+            assertEquals(1, it.next().id());   // FIFO: first-in first-out
+            assertEquals(2, it.next().id());
             assertEquals(2, book.bids().size());
         }
 
@@ -97,7 +96,7 @@ class PriceTimeOrderBookTest {
             book.add(order(1, Side.BUY, 100, 5));
             book.add(order(2, Side.BUY, 100, 7));
             book.requeue(order(1, Side.BUY, 100, 5));
-            assertEquals(1, Objects.requireNonNull(book.bids().get(100L).peekFirst()).id());
+            assertEquals(1, Objects.requireNonNull(book.bids().get(100L).iterator().next()).id());
         }
 
         @Test
@@ -188,7 +187,7 @@ class PriceTimeOrderBookTest {
             var book = new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(order(1, Side.BUY, 100, 5));
             assertThrows(UnsupportedOperationException.class,
-                    () -> book.bids().put(101L, new java.util.ArrayDeque<>()));
+                    () -> book.bids().clear());           // map read-only: no new levels via view
             assertThrows(UnsupportedOperationException.class,
                     () -> book.asks().remove(100L));
         }
@@ -197,7 +196,7 @@ class PriceTimeOrderBookTest {
         void levelDequesRemainLiveThroughView() {
             var book = new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(order(1, Side.BUY, 100, 5));
-            book.bids().get(100L).clear();   // deque deliberately live: engine drains levels through best
+            book.bids().get(100L).clear();   // level collections deliberately live: engine drains levels through best
             assertTrue(book.bids().get(100L).isEmpty());
         }
     }

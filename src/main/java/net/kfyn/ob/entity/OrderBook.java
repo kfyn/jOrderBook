@@ -1,9 +1,16 @@
 package net.kfyn.ob.entity;
 
+import java.util.Collection;
 import java.util.Map;
-import java.util.NavigableMap;
-import java.util.ArrayDeque;
+import java.util.SortedMap;
 
+/**
+ * Price-time priority order book. Levels are keyed by pxTicks (bids
+ * descending, asks ascending); each level holds its orders in FIFO
+ * priority order. The returned maps are read-only views, but the level
+ * collections are live: the engine drains them in place and emptied
+ * levels are pruned eagerly.
+ */
 public interface OrderBook {
     Instrument instrument();
 
@@ -15,11 +22,11 @@ public interface OrderBook {
 
     Order pollBest(Side s);
 
-    Map.Entry<Long, ArrayDeque<Order>> bestBid();
+    Map.Entry<Long, ? extends Collection<Order>> bestBid();
 
-    Map.Entry<Long, ArrayDeque<Order>> bestAsk();
+    Map.Entry<Long, ? extends Collection<Order>> bestAsk();
 
-    NavigableMap<Long, ArrayDeque<Order>> bids();
+    SortedMap<Long, ? extends Collection<Order>> bids();
 
-    NavigableMap<Long, ArrayDeque<Order>> asks();
+    SortedMap<Long, ? extends Collection<Order>> asks();
 }
