@@ -23,52 +23,50 @@ class KNumberTest {
     class Construction {
 
         @Test
-        void rejectsNullExponent() {
-            assertThrows(IllegalArgumentException.class, () -> new KNumber(1, null));
-        }
-
-        @Test
         void rejectsNegativeMantissa() {
-            var ex = assertThrows(IllegalArgumentException.class,
-                    () -> new KNumber(-1, new KExponent(0)));
-            assertTrue(ex.getMessage().contains("-1"));
+            assertThrows(IllegalArgumentException.class, () -> KNumber.of(-1, 0));
         }
 
         @Test
-        void rejectsExponentOutsideBounds() {
-            assertThrows(IllegalArgumentException.class, () -> new KExponent(KExponent.MIN - 1));
-            assertThrows(IllegalArgumentException.class, () -> new KExponent(KExponent.MAX + 1));
-            assertDoesNotThrow(() -> new KExponent(KExponent.MIN));
-            assertDoesNotThrow(() -> new KExponent(KExponent.MAX));
+        void rejectsNegativeTicks() {
+            assertThrows(IllegalArgumentException.class, () -> new KNumber(-1));
+        }
+
+        @Test
+        void rejectsTicksAbove10ToThe18() {
+            assertThrows(IllegalArgumentException.class,
+                    () -> new KNumber(1_000_000_000_000_000_001L));
+            assertDoesNotThrow(() -> new KNumber(1_000_000_000_000_000_000L));
+        }
+
+        @Test
+        void rejectsExponentBelowMinus8() {
+            assertThrows(IllegalArgumentException.class, () -> KNumber.of(1, -9));
+            assertDoesNotThrow(() -> KNumber.of(1, -8));
         }
 
         @Test
         void rejectsValueAbove10ToThe10() {
-            // mantissa just above the cap for its exponent
-            assertThrows(IllegalArgumentException.class,
-                    () -> new KNumber(10_000_000_001L, new KExponent(0)));
-            assertThrows(IllegalArgumentException.class,
-                    () -> new KNumber(2, new KExponent(10)));
-            assertThrows(IllegalArgumentException.class,
-                    () -> new KNumber(1_000_000_000_000_000_001L, new KExponent(-8)));
-            // exactly at the cap: legal
-            assertDoesNotThrow(() -> new KNumber(10_000_000_000L, new KExponent(0)));
-            assertDoesNotThrow(() -> new KNumber(1, new KExponent(10)));
-            assertDoesNotThrow(() -> new KNumber(1_000_000_000_000_000_000L, new KExponent(-8)));
+            assertThrows(IllegalArgumentException.class, () -> KNumber.of(10_000_000_001L, 0));
+            assertThrows(IllegalArgumentException.class, () -> KNumber.of(2, 10));
+            assertThrows(IllegalArgumentException.class, () -> KNumber.of(1_000_000_000_000_000_001L, -8));
+            assertDoesNotThrow(() -> KNumber.of(10_000_000_000L, 0));
+            assertDoesNotThrow(() -> KNumber.of(1, 10));
+            assertDoesNotThrow(() -> KNumber.of(1_000_000_000_000_000_000L, -8));
         }
 
         @Test
         void acceptsZeroWithAnyLegalExponent() {
-            assertDoesNotThrow(() -> new KNumber(0, new KExponent(KExponent.MIN)));
-            assertDoesNotThrow(() -> new KNumber(0, new KExponent(KExponent.MAX)));
+            assertDoesNotThrow(() -> KNumber.of(0, -8));
+            assertDoesNotThrow(() -> KNumber.of(0, 10));
         }
 
         @Test
-        void magnitudeKeyDecidesAcrossExponents() {
-            var big = new KNumber(1, new KExponent(10));       // 1e10
-            var smaller = new KNumber(9_999_999_999L, new KExponent(0)); // ~1e10, same key class
-            assertEquals(1, Integer.signum(big.compareTo(smaller)));
-            assertEquals(-1, Integer.signum(smaller.compareTo(big)));
+        void scalesMantissaToTicks() {
+            assertEquals(0L, KNumber.of(0, 5).ticks());
+            assertEquals(150L, KNumber.of(150, -8).ticks());
+            assertEquals(1_500_000_000_000L, KNumber.of(150, 2).ticks());
+            assertEquals(1_000_000_000_000_000_000L, KNumber.of(1_000_000_000_000_000_000L, -8).ticks());
         }
     }
 
@@ -77,31 +75,27 @@ class KNumberTest {
     class ToBigDecimal {
 
         @Test
-        void negativeExponentGivesPositiveScale() {
-            var v = new KNumber(1234, new KExponent(-2)).toBigDecimal();
-            assertEquals(new BigDecimal("12.34"), v);
-            assertEquals(2, v.scale());
+        void negativeExponentGivesScale8() {
+            var v = KNumber.of(1234, -2).toBigDecimal();
+            assertEquals(0, v.compareTo(new BigDecimal("12.34")));
+            assertEquals(8, v.scale());
+            assertEquals(new BigDecimal("12.34000000"), v);
         }
 
         @Test
         void positiveExponentGivesNegativeScale() {
-            var v = new KNumber(1, new KExponent(2)).toBigDecimal();
-            assertEquals(new BigDecimal("1E+2"), v);
-            assertEquals(-2, v.scale());
+            var v = KNumber.of(1, 2).toBigDecimal();
             assertEquals(0, v.compareTo(new BigDecimal("100")));
-            assertNotEquals(new BigDecimal("100"), v);   // scale-sensitive equals: 1E+2 != 100
         }
 
         @Test
-        void zeroKeepsExponentInScale() {
-            var v = new KNumber(0, new KExponent(5)).toBigDecimal();
-            assertEquals(0, v.compareTo(BigDecimal.ZERO));
-            assertEquals(-5, v.scale());
+        void zero() {
+            assertEquals(0, KNumber.of(0, 5).toBigDecimal().compareTo(BigDecimal.ZERO));
         }
 
         @Test
-        void maxMantissaIsPreservedExactly() {
-            var v = new KNumber(999_999_999_999_999_999L, new KExponent(-8)).toBigDecimal();
+        void maxTicksIsPreservedExactly() {
+            var v = KNumber.of(999_999_999_999_999_999L, -8).toBigDecimal();
             assertEquals(new BigDecimal("9999999999.99999999"), v);
         }
     }
@@ -112,23 +106,21 @@ class KNumberTest {
 
         @Test
         void exactWhenRepresentable() {
-            assertEquals(1.5, new KNumber(15, new KExponent(-1)).toDouble());
-            assertEquals(12.34, new KNumber(1234, new KExponent(-2)).toDouble());
+            assertEquals(1.5, KNumber.of(15, -1).toDouble());
+            assertEquals(12.34, KNumber.of(1234, -2).toDouble());
         }
 
         @Test
-        void zeroForAnyLegalExponent() {
-            assertEquals(0.0, new KNumber(0, new KExponent(KExponent.MIN)).toDouble());
-            assertEquals(0.0, new KNumber(0, new KExponent(KExponent.MAX)).toDouble());
+        void zero() {
+            assertEquals(0.0, KNumber.of(0, 10).toDouble());
         }
 
         @Test
         void extremeLegalValuesConvertExactly() {
-            assertEquals(1.0E10, new KNumber(1, new KExponent(10)).toDouble());
-            assertEquals(1.0E-8, new KNumber(1, new KExponent(-8)).toDouble());
-            // 19-significant-digit max value: not exactly representable as a double, so oracle-compare
+            assertEquals(1.0E10, KNumber.of(1, 10).toDouble());
+            assertEquals(1.0E-8, KNumber.of(1, -8).toDouble());
             assertEquals(decimal(999_999_999_999_999_999L, -8).doubleValue(),
-                    new KNumber(999_999_999_999_999_999L, new KExponent(-8)).toDouble());
+                    KNumber.of(999_999_999_999_999_999L, -8).toDouble());
         }
 
         @Test
@@ -137,89 +129,89 @@ class KNumberTest {
             int[] exponents = {-8, -5, 0, 7, 10};
             for (long m : mantissas) {
                 for (int e : exponents) {
-                    if (m > pow10(10 - e)) continue;   // outside value bound
+                    if (m > pow10(10 - e)) continue;
                     assertEquals(decimal(m, e).doubleValue(),
-                            new KNumber(m, new KExponent(e)).toDouble(),
-                            () -> m + "E" + e);
+                            KNumber.of(m, e).toDouble(), () -> m + "E" + e);
                 }
             }
         }
+    }
 
-        @Nested
-        @DisplayName("equality semantics (as posted: representational)")
-        class Equality {
-            @Test
-            void identicalComponentsAreEqual() {
-                assertEquals(new KNumber(1, new KExponent(2)), new KNumber(1, new KExponent(2)));
-                assertEquals(new KNumber(1, new KExponent(2)).hashCode(),
-                        new KNumber(1, new KExponent(2)).hashCode());
-            }
+    @Nested
+    @DisplayName("equality semantics")
+    class Equality {
 
-            @Test
-            void sameValueDifferentPairIsNotEqual() {
-                // FLIP THIS to assertEquals once you canonicalise in the compact constructor
-                assertNotEquals(new KNumber(10, new KExponent(1)), new KNumber(1, new KExponent(2)));
-            }
+        @Test
+        void sameValueDifferentRepresentationIsEqual() {
+            assertEquals(KNumber.of(10, 1), KNumber.of(1, 2));
+            assertEquals(KNumber.of(10, 1).hashCode(), KNumber.of(1, 2).hashCode());
+        }
 
-            @Test
-            void treeAndHashDisagreeWhileUncanonicalised() {
-                var ten = new KNumber(10, new KExponent(1));
-                var alsoTen = new KNumber(1, new KExponent(2));
-                assertEquals(2, new HashSet<>(List.of(ten, alsoTen)).size());
-                assertEquals(1, new TreeSet<>(List.of(ten, alsoTen)).size());
+        @Test
+        void hashAndTreeAgree() {
+            var ten = KNumber.of(10, 1);
+            var alsoTen = KNumber.of(1, 2);
+            assertEquals(1, new HashSet<>(List.of(ten, alsoTen)).size());
+            assertEquals(1, new TreeSet<>(List.of(ten, alsoTen)).size());
+        }
+    }
+
+    @Nested
+    @DisplayName("compareTo")
+    class Comparison {
+
+        @Test
+        void sameTicksCompareDirectly() {
+            assertTrue(KNumber.of(2, 3).compareTo(KNumber.of(1, 3)) > 0);
+        }
+
+        @Test
+        void numericallyEqualPairsCompareEqual() {
+            assertEquals(0, KNumber.of(10, 1).compareTo(KNumber.of(1, 2)));
+            assertEquals(0, KNumber.of(0, 10).compareTo(KNumber.of(0, -8)));
+        }
+
+        @Test
+        void magnitudeDecidesAcrossExponents() {
+            assertTrue(KNumber.of(1, 10).compareTo(KNumber.of(99, 0)) > 0);
+        }
+
+        @Test
+        void exactPathWhenMagnitudeTies() {
+            assertTrue(KNumber.of(99, 0).compareTo(KNumber.of(1, 1)) > 0);
+        }
+
+        @Test
+        void zeroIsSmallest() {
+            assertTrue(KNumber.of(0, 10).compareTo(KNumber.of(1, -8)) < 0);
+        }
+
+        @Test
+        void agreesWithBigDecimalOracle() {
+            var rnd = new Random(20260915L);
+            for (int i = 0; i < 10_000; i++) {
+                int e1 = rnd.nextInt(-8, 11);
+                int e2 = rnd.nextInt(-8, 11);
+                long m1 = rnd.nextLong(0, pow10(10 - e1) + 1);
+                long m2 = rnd.nextLong(0, pow10(10 - e2) + 1);
+                var a = KNumber.of(m1, e1);
+                var b = KNumber.of(m2, e2);
+                assertEquals(Integer.signum(decimal(m1, e1).compareTo(decimal(m2, e2))),
+                        Integer.signum(a.compareTo(b)), () -> a + " vs " + b);
+                assertEquals(-Integer.signum(a.compareTo(b)), Integer.signum(b.compareTo(a)),
+                        () -> "antisymmetry: " + a + " vs " + b);
             }
         }
 
-        @Nested
-        @DisplayName("compareTo")
-        class Comparison {
-
-            @Test
-            void sameExponentComparesMantissas() {
-                assertTrue(new KNumber(2, new KExponent(3)).compareTo(new KNumber(1, new KExponent(3))) > 0);
-            }
-
-            @Test
-            void numericallyEqualPairsAreEqual() {
-                assertEquals(0, new KNumber(10, new KExponent(1))
-                        .compareTo(new KNumber(1, new KExponent(2))));
-                assertEquals(0, new KNumber(0, new KExponent(10))
-                        .compareTo(new KNumber(0, new KExponent(-8))));
-            }
-
-            @Test
-            void magnitudeKeyDecidesAcrossExponents() {
-                assertTrue(new KNumber(1, new KExponent(10))
-                        .compareTo(new KNumber(99, new KExponent(0))) > 0);   // 1e10 vs 99
-            }
-
-            @Test
-            void exactPathWhenKeysTie() {
-                assertTrue(new KNumber(99, new KExponent(0))
-                        .compareTo(new KNumber(1, new KExponent(1))) > 0);    // 99 vs 10, same key
-            }
-
-            @Test
-            void zeroIsSmallest() {
-                assertTrue(new KNumber(0, new KExponent(10))
-                        .compareTo(new KNumber(1, new KExponent(-8))) < 0);
-            }
-
-            @Test
-            void agreesWithBigDecimalOracle() {
-                var rnd = new Random(20260915L);
-                for (int i = 0; i < 10_000; i++) {
-                    int e1 = rnd.nextInt(KExponent.MIN, KExponent.MAX + 1);
-                    int e2 = rnd.nextInt(KExponent.MIN, KExponent.MAX + 1);
-                    long m1 = rnd.nextLong(0, pow10(10 - e1) + 1);
-                    long m2 = rnd.nextLong(0, pow10(10 - e2) + 1);
-                    var a = new KNumber(m1, new KExponent(e1));
-                    var b = new KNumber(m2, new KExponent(e2));
-                    assertEquals(Integer.signum(decimal(m1, e1).compareTo(decimal(m2, e2))),
-                            Integer.signum(a.compareTo(b)), () -> a + " vs " + b);
-                    assertEquals(-Integer.signum(a.compareTo(b)), Integer.signum(b.compareTo(a)),
-                            () -> "antisymmetry: " + a + " vs " + b);
-                }
+        @Test
+        void ticksComparisonEqualsBigDecimalOracle() {
+            var rnd = new Random(20260919L);
+            for (int i = 0; i < 10_000; i++) {
+                long t1 = rnd.nextLong(0, 1_000_000_000_000_000_000L);
+                long t2 = rnd.nextLong(0, 1_000_000_000_000_000_000L);
+                assertEquals(Integer.signum(new KNumber(t1).compareTo(new KNumber(t2))),
+                        Integer.signum(BigDecimal.valueOf(t1, 8)
+                                .compareTo(BigDecimal.valueOf(t2, 8))));
             }
         }
     }
