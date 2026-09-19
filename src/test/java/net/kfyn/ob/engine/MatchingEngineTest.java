@@ -9,7 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Random;
 
 import net.kfyn.ob.impl.*;
@@ -290,8 +290,8 @@ class MatchingEngineTest {
             engine.submit(buy(2, 101, 5));
             engine.submit(sell(3, 110, 5));
             assertEquals(3, engine.openCount());
-            assertEquals(3, book.bids().values().stream().mapToInt(ArrayDeque::size).sum()
-                    + book.asks().values().stream().mapToInt(ArrayDeque::size).sum());
+            assertEquals(3, book.bids().values().stream().mapToInt(Collection::size).sum()
+                    + book.asks().values().stream().mapToInt(Collection::size).sum());
             engine.cancel(2);
             assertEquals(2, engine.openCount());
         }
