@@ -16,9 +16,9 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PriceTimeAuctionEngineTest {
+class MaxVolAuctionEngineTest {
 
-    private final AuctionEngine auction = AuctionEngine.priceTime();
+    private final AuctionEngine auction = AuctionEngine.maxVol();
 
     private static Order buy(long id, long px, long qty) {
         return new SimpleOrder(id, Side.BUY, px, qty, OrderType.LIMIT);

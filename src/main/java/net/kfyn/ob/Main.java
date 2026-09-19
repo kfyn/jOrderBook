@@ -31,12 +31,12 @@ public final class Main {
      * asks 50000@102, 200@99, 700@98.
      */
     static AuctionResult uncrossBook() {
-        return AuctionEngine.priceTime().uncross(bids(), asks());
+        return AuctionEngine.maxVol().uncross(bids(), asks());
     }
 
     /** A disjoint book (best bid below best ask): exercises the no-cross path. */
     static AuctionResult uncrossNoCross() {
-        return AuctionEngine.priceTime().uncross(
+        return AuctionEngine.maxVol().uncross(
                 List.of(share(1, Side.BUY, 100, 100)),
                 List.of(share(2, Side.SELL, 101, 100)));
     }

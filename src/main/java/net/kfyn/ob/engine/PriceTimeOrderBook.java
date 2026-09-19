@@ -58,9 +58,7 @@ public class PriceTimeOrderBook implements OrderBook {
             // same level, reduced qty: keep queue position (rebuild in place)
             ArrayDeque<Order> rebuilt = new ArrayDeque<>(level.size());
             for (Order resting : level) {
-                // value equality, matching the contains() guard above: the
-                // caller may pass a value-equal instance (SimpleOrder is a
-                // record) rather than the exact resting reference
+                // value equality
                 rebuilt.addLast(Objects.equals(resting, o) ? amended : resting);
             }
             side.put(newPxTicks, rebuilt);
@@ -113,7 +111,7 @@ public class PriceTimeOrderBook implements OrderBook {
     /**
      * Runs the auction uncross over the resting book as a pure query: orders
      * are flattened per side in price-time order (price priority, FIFO within
-     * a level) and uncrossed by {@link PriceTimeAuctionEngine}. The book is
+     * a level) and uncrossed by {@link MaxVolAuctionEngine}. The book is
      * not modified.
      */
     public AuctionResult uncross() {
@@ -121,7 +119,7 @@ public class PriceTimeOrderBook implements OrderBook {
         this.bids.forEach((_, level) -> bids.addAll(level));
         List<Order> asks = new ArrayList<>();
         this.asks.forEach((_, level) -> asks.addAll(level));
-        return new PriceTimeAuctionEngine().uncross(bids, asks);
+        return new MaxVolAuctionEngine().uncross(bids, asks);
     }
 
     /**

@@ -8,7 +8,7 @@ public interface AuctionEngine {
 
     AuctionResult uncross(List<Order> bids, List<Order> asks);
 
-    static AuctionEngine priceTime() {
-        return new PriceTimeAuctionEngine();
+    static AuctionEngine maxVol() {
+        return new MaxVolAuctionEngine();
     }
 }

@@ -22,15 +22,14 @@ import java.util.TreeSet;
  * among equal-imbalance ties pick the highest price under pure buy
  * pressure, otherwise the lowest.
  */
-public class PriceTimeAuctionEngine implements AuctionEngine {
+public class MaxVolAuctionEngine implements AuctionEngine {
 
     @Override
     public AuctionResult uncross(List<Order> bids, List<Order> asks) {
         Objects.requireNonNull(bids, "bids");
         Objects.requireNonNull(asks, "asks");
         // Validate sides and quantities at this boundary, and find the extreme
-        // prices, in the same pass. Non-positive quantities are rejected here
-        // rather than silently producing a zero-volume sweep.
+        // prices, in the same pass. Rejected outright when violated.
         long bestBid = Long.MIN_VALUE;
         for (Order b : bids) {
             Objects.requireNonNull(b, "bid");
@@ -48,8 +47,7 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
         if (bids.isEmpty() || asks.isEmpty()) {
             return uncrossed(bids, asks);
         }
-        // Early exit: a clearing price needs bids >= p and asks <= p, so an
-        // uncrossed book (best bid below best ask) cannot trade at any price.
+        // Early exit: a clearing price needs bids >= p and asks <= p
         if (bestBid < bestAsk) {
             return uncrossed(bids, asks);
         }
@@ -82,10 +80,7 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
             }
             demand = Math.subtractExact(demand, bidQty.getOrDefault(price, 0L));
         }
-        // bestVol > 0 is guaranteed here: both sides are non-empty, the early
-        // exit above ruled out bestBid < bestAsk, and every quantity is
-        // positive, so V(bestBid) >= min(bidQty(bestBid), askQty(bestAsk)) > 0.
-        // No zero-volume fallback is reachable.
+        // bestVol > 0 is guaranteed here:  V(bestBid) >= min(bidQty(bestBid), askQty(bestAsk)) > 0.
         return execute(selectPrice(ties), bids, asks);
     }
 
@@ -125,8 +120,6 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
             long fill = Math.min(remB[i], remA[j]);
             trades.add(new SimpleTrade(execBids.get(i).id(), execAsks.get(j).id(), price, fill));
             executed = Math.addExact(executed, fill);
-            // fill == min(remB[i], remA[j]) >= 0, so neither decrement can
-            // underflow or overflow.
             remB[i] -= fill;
             remA[j] -= fill;
             if (remB[i] == 0) i++;
@@ -162,14 +155,7 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     }
 
     private static AuctionResult uncrossed(List<Order> bids, List<Order> asks) {
-        // Ownership contract: AuctionResult copies defensively, so handing it
-        // an already-immutable list makes that copy a no-op. This does NOT
-        // reduce the total cost of the path: the combined leftovers still take
-        // one copy to build the list and one in List.copyOf, exactly as
-        // before — the copy is only attributed to the caller instead of the
-        // record. What this does buy is an explicit immutability guarantee at
-        // the call site.
-        // kdev: ceiling — a true single copy would require AuctionResult to
+        // A true single copy would require AuctionResult to
         // trust a caller-supplied immutable list; safety was kept instead.
         List<Order> leftovers = new ArrayList<>(bids.size() + asks.size());
         leftovers.addAll(bids);
