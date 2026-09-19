@@ -3,10 +3,6 @@ package net.kfyn.ob.entity;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-/**
- * Instrument tick configuration: the units authority for one OrderBook.
- * tick = tickM * 10^-scale; ticks are exact multiples of the tick.
- */
 public record Instrument(String symbol, long pxTickM, int pxScale, long qtyTickM, int qtyScale) {
 
     public Instrument {
