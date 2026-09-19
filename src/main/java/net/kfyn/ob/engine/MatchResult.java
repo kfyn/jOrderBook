@@ -1,6 +1,5 @@
 package net.kfyn.ob.engine;
 
-import net.kfyn.ob.entity.Order;
 import net.kfyn.ob.entity.Trade;
 
 import java.util.List;

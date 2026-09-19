@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayDeque;
 import java.util.Random;
 
 import net.kfyn.ob.impl.*;
@@ -68,7 +69,7 @@ class MatchingEngineTest {
             engine.submit(sell(1, 100, 5));
             var r = engine.submit(buy(2, 105, 5));   // crosses; fills at 100, not 105
             assertEquals(1, r.trades().size());
-            var t = r.trades().get(0);
+            var t = r.trades().getFirst();
             assertEquals(100L, t.pxTicks());
             assertEquals(5L, t.qtyTicks());
             assertEquals(2L, t.bidOrderId());
@@ -85,7 +86,7 @@ class MatchingEngineTest {
             engine.submit(sell(1, 100, 3));
             var r = engine.submit(buy(2, 100, 5));
             assertEquals(1, r.trades().size());
-            assertEquals(3L, r.trades().get(0).qtyTicks());
+            assertEquals(3L, r.trades().getFirst().qtyTicks());
             assertEquals(2, r.remainingQtyTicks());
             assertTrue(engine.isOpen(2));
             assertEquals(100L, book.bestBid().getKey());
@@ -102,7 +103,7 @@ class MatchingEngineTest {
             engine.submit(sell(4, 100, 1));           // queues behind order 2
             var r = engine.submit(buy(5, 100, 1));     // must hit order 2 first, not order 4
             assertEquals(1, r.trades().size());
-            assertEquals(2L, r.trades().get(0).askOrderId());
+            assertEquals(2L, r.trades().getFirst().askOrderId());
         }
 
         @Test
@@ -222,7 +223,7 @@ class MatchingEngineTest {
             engine.submit(sell(1, -100, 5));
             var r = engine.submit(buy(2, -100, 5));
             assertEquals(1, r.trades().size());
-            assertEquals(-100L, r.trades().get(0).pxTicks());
+            assertEquals(-100L, r.trades().getFirst().pxTicks());
             assertFalse(engine.isOpen(1));
             assertFalse(engine.isOpen(2));
         }
@@ -233,7 +234,7 @@ class MatchingEngineTest {
             engine.submit(sell(1, -100, 5));
             var r = engine.submit(buy(2, -99, 5));    // -99 >= -100 crosses
             assertEquals(1, r.trades().size());
-            assertEquals(-100L, r.trades().get(0).pxTicks());
+            assertEquals(-100L, r.trades().getFirst().pxTicks());
         }
     }
 
@@ -289,8 +290,8 @@ class MatchingEngineTest {
             engine.submit(buy(2, 101, 5));
             engine.submit(sell(3, 110, 5));
             assertEquals(3, engine.openCount());
-            assertEquals(3, book.bids().values().stream().mapToInt(q -> q.size()).sum()
-                    + book.asks().values().stream().mapToInt(q -> q.size()).sum());
+            assertEquals(3, book.bids().values().stream().mapToInt(ArrayDeque::size).sum()
+                    + book.asks().values().stream().mapToInt(ArrayDeque::size).sum());
             engine.cancel(2);
             assertEquals(2, engine.openCount());
         }

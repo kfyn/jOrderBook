@@ -64,8 +64,8 @@ class SimpleInstrumentTest {
     @DisplayName("boundary conversion")
     class Conversion {
 
-        Instrument btc = Instrument.of("BTCUSDT", "0.10", "0.001");
-        Instrument pepe = Instrument.of("PEPEUSDT", "0.00000001", "1");
+        final Instrument btc = Instrument.of("BTCUSDT", "0.10", "0.001");
+        final Instrument pepe = Instrument.of("PEPEUSDT", "0.00000001", "1");
 
         @Test
         void exactOnTickValues() {

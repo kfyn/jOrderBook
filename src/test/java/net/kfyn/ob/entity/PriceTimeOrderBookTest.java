@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.Random;
 
 import net.kfyn.ob.impl.*;
@@ -83,7 +84,9 @@ class PriceTimeOrderBookTest {
             book.add(order(3, Side.BUY, 99, 1));
             var level = book.bids().get(100L);
             assertEquals(2, level.size());
+            assert level.peekFirst() != null;
             assertEquals(1, level.peekFirst().id());
+            assert level.peekLast() != null;
             assertEquals(2, level.peekLast().id());
             assertEquals(2, book.bids().size());
         }
@@ -94,7 +97,7 @@ class PriceTimeOrderBookTest {
             book.add(order(1, Side.BUY, 100, 5));
             book.add(order(2, Side.BUY, 100, 7));
             book.requeue(order(1, Side.BUY, 100, 5));
-            assertEquals(1, book.bids().get(100L).peekFirst().id());
+            assertEquals(1, Objects.requireNonNull(book.bids().get(100L).peekFirst()).id());
         }
 
         @Test
