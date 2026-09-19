@@ -44,10 +44,12 @@ tasks.register<JavaExec>("jmh") {
     classpath = jmhClasspath
     mainClass = "org.openjdk.jmh.Main"
     jvmArgs("-Xmx1g")
-    doFirst { mkdir(layout.buildDirectory.dir("jmh").get().asFile) }
-    if (project.hasProperty("jmhArgs")) {
-        args(project.property("jmhArgs").toString().split(' '))
-    }
+    // resolve the output dir at configuration time; the action captures only the File
+    // (configuration-cache safe) and mkdirs is a no-op when the dir already exists
+    val outDir = layout.buildDirectory.dir("jmh").get().asFile
+    doFirst { if (!outDir.exists()) outDir.mkdirs() }
+    val extra = providers.gradleProperty("jmhArgs").orNull?.split(' ') ?: emptyList()
+    args(extra)
 }
 
 tasks.register<JavaExec>("jmhSmoke") {
@@ -56,12 +58,13 @@ tasks.register<JavaExec>("jmhSmoke") {
     classpath = jmhClasspath
     mainClass = "org.openjdk.jmh.Main"
     jvmArgs("-Xmx1g")
-    doFirst { mkdir(layout.buildDirectory.dir("jmh").get().asFile) }
+    val outDir = layout.buildDirectory.dir("jmh").get().asFile
+    doFirst { if (!outDir.exists()) outDir.mkdirs() }
     args(
         "-i", "1", "-wi", "1", "-f", "1", "-t", "1",
         "-r", "1s", "-w", "1s",
         "-foe", "true",
-        "-rf", "json", "-rff", "build/jmh/results.json"
+        "-rf", "json", "-rff", outDir.resolve("results.json").absolutePath
     )
 }
 
