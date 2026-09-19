@@ -197,7 +197,7 @@ class PriceTimeAuctionEngineTest {
                     List.of(sell(2, 99, 4), sell(3, 120, 7)));
             assertEquals(OptionalLong.of(100), r.priceTicks());
             assertEquals(2, r.leftovers().size());
-            Order partial = r.leftovers().get(0);
+            Order partial = r.leftovers().getFirst();
             assertEquals(1L, partial.id());
             assertEquals(1, partial.qtyTicks());
             Order untouched = r.leftovers().get(1);

@@ -21,10 +21,6 @@ class PriceTimeOrderBookTest {
         return order(id, Side.BUY, pxTicks, qtyTicks);
     }
 
-    private static Order sell(long id, long pxTicks, long qtyTicks) {
-        return order(id, Side.SELL, pxTicks, qtyTicks);
-    }
-
     @Nested
     @DisplayName("order validation")
     class OrderValidation {
