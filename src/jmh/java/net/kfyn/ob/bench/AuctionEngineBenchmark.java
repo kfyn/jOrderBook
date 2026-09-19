@@ -56,7 +56,8 @@ public class AuctionEngineBenchmark {
             long crossedBidPx = 100 + i;
             long crossedAskPx = 100 - i;
             long gappedBidPx = 100 + i;
-            long gappedAskPx = 300 + i;   // every ask sits far above every bid
+            // far above every bid for any `levels` value (max bid = 100 + levels - 1)
+            long gappedAskPx = 1000 + i;
             for (int k = 0; k < ordersPerLevel; k++) {
                 long qty = 100 + 25 * (k % 4);
                 crossedBids.add(new SimpleOrder(id++, Side.BUY, crossedBidPx, qty, OrderType.LIMIT));
