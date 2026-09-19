@@ -12,8 +12,7 @@ import java.util.List;
 
 /**
  * limit order book from the spec, uncrossed by the maximum-volume
- * auction algorithm. Expected: matching auction price 99, total
- * matched volume 700 (the bonus output).
+ * auction algorithm.
  */
 public final class ReqExample {
 
