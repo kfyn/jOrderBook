@@ -17,17 +17,7 @@ import java.util.List;
 import java.util.OptionalLong;
 
 /**
- * Deterministic end-to-end scenario: a resting price-time book, an
- * opening call auction on top of it, and the continuous matcher draining
- * the auction leftovers (rest-on-book policy).
- *
- * Hard numbers of the scenario (both phases are exact):
- * - resting book: bids 99..95 and asks 101..105, qty 10 each
- * - auction batch: bids {102x15, 101x8}, asks {98x20, 99x5}
- *   → clearing price 99 (max volume 23; tie with 101 broken by sell
- *   pressure → lower price), 3 trades, leftover ask 2@99
- * - leftover rests on the book, then a buy 99x10 partially drains it
- *   (2 filled against the rested ask at 99), remainder rests
+ * resting price-time book an opening call auction on top of it
  */
 public final class Simulation {
 
@@ -73,8 +63,7 @@ public final class Simulation {
                 List.of(order(++id, Side.SELL, 98, 20), order(++id, Side.SELL, 99, 5)));
         submitted += 15 + 8 + 20 + 5;
 
-        // Phase C: rest auction leftovers on the book (opening-auction policy),
-        // then continue with continuous matching
+        // Phase C: rest auction leftovers on the book (opening-auction policy)
         List<Trade> engineTrades = new ArrayList<>();
         for (Order leftover : auction.leftovers()) {
             engineTrades.addAll(engine.submit(leftover).trades());

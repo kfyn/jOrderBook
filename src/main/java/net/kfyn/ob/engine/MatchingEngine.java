@@ -1,7 +1,6 @@
 package net.kfyn.ob.engine;
 
 import net.kfyn.ob.entity.Order;
-import net.kfyn.ob.entity.OrderBook;
 
 public interface MatchingEngine {
     MatchResult submit(Order incoming);
@@ -11,8 +10,4 @@ public interface MatchingEngine {
     boolean isOpen(long orderId);
 
     int openCount();
-
-    static MatchingEngine over(OrderBook book) {
-        return new PriceTimeMatchingEngine(book);
-    }
 }

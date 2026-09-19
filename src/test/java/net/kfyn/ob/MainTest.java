@@ -22,7 +22,7 @@ class MainTest {
 
         // Phase C: rested leftover (ask 2@99) drains against resting bid 99x10
         assertEquals(1, out.engineTrades().size());
-        Trade t = out.engineTrades().get(0);
+        Trade t = out.engineTrades().getFirst();
         assertEquals(1L, t.bidOrderId());
         assertEquals(14L, t.askOrderId());
         assertEquals(99, t.pxTicks());

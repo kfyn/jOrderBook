@@ -11,7 +11,6 @@ import net.kfyn.ob.entity.SimpleOrder;
 import java.util.List;
 
 /**
- * Golden-requirement demo (docs/20260919-mq-ob-req.md): the example
  * limit order book from the spec, uncrossed by the maximum-volume
  * auction algorithm. Expected: matching auction price 99, total
  * matched volume 700 (the bonus output).
@@ -28,7 +27,7 @@ public final class ReqExample {
      * Spec book: bids 102@50000, 1000@99, 700@98;
      * asks 100@100, 200@99, 500@96.
      */
-    public static AuctionResult uncrossGoldenBook() {
+    public static AuctionResult uncrossBook() {
         return AuctionEngine.priceTime().uncross(bids(), asks());
     }
 

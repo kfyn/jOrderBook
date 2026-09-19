@@ -4,22 +4,16 @@ import net.kfyn.ob.engine.AuctionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Golden-requirement acceptance test (docs/20260919-mq-ob-req.md):
- * the spec's example order book must uncross at the maximum-volume
- * price with the documented volumes.
- */
 class ReqExampleTest {
 
     @Test
     @DisplayName("spec example book: matching auction price 99, total matched volume 700")
-    void goldenBookUncrossesAtMaxVolumePrice() {
-        AuctionResult r = ReqExample.uncrossGoldenBook();
+    void bookUncrossesAtMaxVolumePrice() {
+        AuctionResult r = ReqExample.uncrossBook();
 
         // candidate prices in the spec: 98, 99, 100 -> volumes 700@98,
         // 700@99, 500@100; max volume is 700, first achieved at 98, but the

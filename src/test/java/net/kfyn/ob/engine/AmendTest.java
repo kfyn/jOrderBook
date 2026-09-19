@@ -196,9 +196,9 @@ class AmendTest {
     class AuctionWorkflow {
 
         @Test
-        void submitAmendCancelThenUncrossMatchesGoldenSemantics() {
+        void submitAmendCancelThenUncrossMatchesSemantics() {
             var book = book();
-            // build the golden-req shape, then exercise amend + cancel first
+            // build the sample req shape, then exercise amend + cancel first
             var b1 = buy(1, 99, 1000);
             var b2 = buy(2, 98, 700);
             var b3 = buy(3, 100, 102);    // will be amended up to 50000-tick equivalent... keep in tick units
