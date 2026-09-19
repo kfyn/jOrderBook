@@ -66,7 +66,6 @@ class MainTest {
         assertTrue(out.contains("unfilled (leftover) orders : 3"), out);
     }
 
-    /** Volume that would trade if the clearing price were {@code px} (whole dollars). */
     private static long volumeAt(long px) {
         long pxTicks = Main.BHP.pxTicks(java.math.BigDecimal.valueOf(px));
         long demand = Main.bids().stream()

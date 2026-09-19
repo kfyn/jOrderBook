@@ -16,10 +16,16 @@ import java.util.TreeSet;
 
 /**
  * Stateless, single-threaded.
+ *
+ * <p>Tie-break, used when several candidate prices share the maximum
+ * volume: prefer the price with the smallest demand/supply imbalance;
+ * among equal-imbalance ties pick the highest price under pure buy
+ * pressure, otherwise the lowest.
  */
 public class PriceTimeAuctionEngine implements AuctionEngine {
 
-    @Override public AuctionResult uncross(List<Order> bids, List<Order> asks) {
+    @Override
+    public AuctionResult uncross(List<Order> bids, List<Order> asks) {
         Objects.requireNonNull(bids, "bids");
         Objects.requireNonNull(asks, "asks");
         // Validate sides and find the extreme prices in the same pass.

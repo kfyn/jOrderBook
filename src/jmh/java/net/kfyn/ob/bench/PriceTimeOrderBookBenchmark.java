@@ -27,9 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Book operations: add / amend / cancel / uncross / close on a crossed
- * (realistic-to-uncross) resting book. Mutating benchmarks return the book
- * to its steady state (same orders, same levels) so repeated invocations
- * measure the same structure.
+ * (realistic-to-uncross) resting book.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)

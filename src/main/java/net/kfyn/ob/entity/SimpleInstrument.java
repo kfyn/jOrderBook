@@ -19,21 +19,25 @@ public record SimpleInstrument(String symbol, long pxTickMantissa, int pxScale,
                 tickMantissa(qtyTick), tickScale(qtyTick));
     }
 
-    @Override public long pxTicks(BigDecimal v) {
+    @Override
+    public long pxTicks(BigDecimal v) {
         return ticks(v, pxTickMantissa, pxScale, symbol);
     }
 
-    @Override public long qtyTicks(BigDecimal v) {
+    @Override
+    public long qtyTicks(BigDecimal v) {
         long t = ticks(v, qtyTickMantissa, qtyScale, symbol);
         if (t <= 0) throw new IllegalArgumentException(symbol + ": qty must be positive: " + v);
         return t;
     }
 
-    @Override public BigDecimal pxValue(long t) {
+    @Override
+    public BigDecimal pxValue(long t) {
         return value(t, pxTickMantissa, pxScale);
     }
 
-    @Override public BigDecimal qtyValue(long t) {
+    @Override
+    public BigDecimal qtyValue(long t) {
         return value(t, qtyTickMantissa, qtyScale);
     }
 

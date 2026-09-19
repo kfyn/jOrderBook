@@ -17,21 +17,25 @@ public class PriceTimeOrderBook implements OrderBook {
         this.instrument = Objects.requireNonNull(instrument, "instrument");
     }
 
-    @Override public Instrument instrument() {
+    @Override
+    public Instrument instrument() {
         return instrument;
     }
 
-    @Override public void add(Order o) {
+    @Override
+    public void add(Order o) {
         Objects.requireNonNull(o, "order");
         side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addLast(o);
     }
 
-    @Override public void requeue(Order o) {
+    @Override
+    public void requeue(Order o) {
         Objects.requireNonNull(o, "order");
         side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addFirst(o);
     }
 
-    @Override public boolean remove(Order o) {
+    @Override
+    public boolean remove(Order o) {
         Objects.requireNonNull(o, "order");
         TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
         ArrayDeque<Order> level = side.get(o.pxTicks());
@@ -40,7 +44,8 @@ public class PriceTimeOrderBook implements OrderBook {
         return true;
     }
 
-    @Override public Order amend(Order o, long newPxTicks, long newQtyTicks) {
+    @Override
+    public Order amend(Order o, long newPxTicks, long newQtyTicks) {
         Objects.requireNonNull(o, "order");
         if (newQtyTicks <= 0) throw new IllegalArgumentException("newQtyTicks must be positive: " + newQtyTicks);
         TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
@@ -65,7 +70,8 @@ public class PriceTimeOrderBook implements OrderBook {
         return amended;
     }
 
-    @Override public Order pollBest(Side s) {
+    @Override
+    public Order pollBest(Side s) {
         TreeMap<Long, ArrayDeque<Order>> side = side(s);
         while (!side.isEmpty()) {
             var e = side.firstEntry();
@@ -81,19 +87,23 @@ public class PriceTimeOrderBook implements OrderBook {
         return null;
     }
 
-    @Override public Map.Entry<Long, ? extends Collection<Order>> bestBid() {
+    @Override
+    public Map.Entry<Long, ? extends Collection<Order>> bestBid() {
         return best(bids);
     }
 
-    @Override public Map.Entry<Long, ? extends Collection<Order>> bestAsk() {
+    @Override
+    public Map.Entry<Long, ? extends Collection<Order>> bestAsk() {
         return best(asks);
     }
 
-    @Override public SortedMap<Long, ? extends Collection<Order>> bids() {
+    @Override
+    public SortedMap<Long, ? extends Collection<Order>> bids() {
         return Collections.unmodifiableNavigableMap(bids);
     }
 
-    @Override public SortedMap<Long, ? extends Collection<Order>> asks() {
+    @Override
+    public SortedMap<Long, ? extends Collection<Order>> asks() {
         return Collections.unmodifiableNavigableMap(asks);
     }
 
@@ -105,9 +115,9 @@ public class PriceTimeOrderBook implements OrderBook {
      */
     public AuctionResult uncross() {
         List<Order> bids = new ArrayList<>();
-        this.bids.forEach((px, level) -> level.forEach(bids::add));
+        this.bids.forEach((_, level) -> bids.addAll(level));
         List<Order> asks = new ArrayList<>();
-        this.asks.forEach((px, level) -> level.forEach(asks::add));
+        this.asks.forEach((_, level) -> asks.addAll(level));
         return new PriceTimeAuctionEngine().uncross(bids, asks);
     }
 

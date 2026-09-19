@@ -56,7 +56,6 @@ public final class Main {
         System.out.printf("book: bids 100@100, 1000@99, 500@96 | asks 50000@102, 200@99, 700@98%n");
         AuctionResult r = uncrossBook();
         if (r.priceTicks().isEmpty()) {
-            System.out.println("no cross: no matching auction price");
             return;
         }
         long px = r.priceTicks().getAsLong();
