@@ -6,9 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
+import net.kfyn.ob.impl.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-class InstrumentTest {
+class SimpleInstrumentTest {
 
     @Nested
     @DisplayName("construction")
@@ -31,7 +33,7 @@ class InstrumentTest {
         @Test
         void rejectsScaleAbove18() {
             assertThrows(IllegalArgumentException.class,
-                    () -> new Instrument("X", 1, 19, 1, 0));
+                    () -> new SimpleInstrument("X", 1, 19, 1, 0));
         }
 
         @Test
@@ -62,8 +64,8 @@ class InstrumentTest {
     @DisplayName("boundary conversion")
     class Conversion {
 
-        Instrument btc = Instrument.of("BTCUSDT", "0.10", "0.001");
-        Instrument pepe = Instrument.of("PEPEUSDT", "0.00000001", "1");
+        final Instrument btc = Instrument.of("BTCUSDT", "0.10", "0.001");
+        final Instrument pepe = Instrument.of("PEPEUSDT", "0.00000001", "1");
 
         @Test
         void exactOnTickValues() {

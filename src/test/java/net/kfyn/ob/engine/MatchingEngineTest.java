@@ -2,7 +2,6 @@ package net.kfyn.ob.engine;
 
 import net.kfyn.ob.entity.Instrument;
 import net.kfyn.ob.entity.Order;
-import net.kfyn.ob.entity.OrderBook;
 import net.kfyn.ob.entity.OrderType;
 import net.kfyn.ob.entity.Side;
 import net.kfyn.ob.entity.Trade;
@@ -10,7 +9,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayDeque;
 import java.util.Random;
+
+import net.kfyn.ob.impl.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -19,11 +21,11 @@ class MatchingEngineTest {
     private static final Instrument BTC = Instrument.of("BTCUSDT", "0.10", "0.001");
 
     private static Order buy(long id, long pxTicks, long qtyTicks) {
-        return new Order(id, Side.BUY, pxTicks, qtyTicks, OrderType.LIMIT);
+        return new SimpleOrder(id, Side.BUY, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
     private static Order sell(long id, long pxTicks, long qtyTicks) {
-        return new Order(id, Side.SELL, pxTicks, qtyTicks, OrderType.LIMIT);
+        return new SimpleOrder(id, Side.SELL, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
     @Nested
@@ -32,7 +34,7 @@ class MatchingEngineTest {
 
         @Test
         void restsWhenNoLiquidity() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             var r = engine.submit(buy(1, 100, 5));
             assertEquals(0, r.trades().size());
             assertEquals(5, r.remainingQtyTicks());
@@ -41,8 +43,8 @@ class MatchingEngineTest {
 
         @Test
         void restsWhenNotCrossing() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(sell(1, 102, 5));
             var r = engine.submit(buy(2, 101, 5));   // bid below best ask
             assertEquals(0, r.trades().size());
@@ -52,7 +54,7 @@ class MatchingEngineTest {
 
         @Test
         void nullOrderRejected() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             assertThrows(NullPointerException.class, () -> engine.submit(null));
         }
     }
@@ -63,11 +65,11 @@ class MatchingEngineTest {
 
         @Test
         void fullFillAtRestingPrice() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 100, 5));
             var r = engine.submit(buy(2, 105, 5));   // crosses; fills at 100, not 105
             assertEquals(1, r.trades().size());
-            var t = r.trades().get(0);
+            var t = r.trades().getFirst();
             assertEquals(100L, t.pxTicks());
             assertEquals(5L, t.qtyTicks());
             assertEquals(2L, t.bidOrderId());
@@ -79,12 +81,12 @@ class MatchingEngineTest {
 
         @Test
         void incomingPartialFillRemainderRests() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(sell(1, 100, 3));
             var r = engine.submit(buy(2, 100, 5));
             assertEquals(1, r.trades().size());
-            assertEquals(3L, r.trades().get(0).qtyTicks());
+            assertEquals(3L, r.trades().getFirst().qtyTicks());
             assertEquals(2, r.remainingQtyTicks());
             assertTrue(engine.isOpen(2));
             assertEquals(100L, book.bestBid().getKey());
@@ -92,7 +94,7 @@ class MatchingEngineTest {
 
         @Test
         void restingPartialFillKeepsFifoPosition() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 100, 2));
             engine.submit(sell(2, 100, 3));
             engine.submit(buy(3, 100, 3));            // fills order 1 (2) + 1 of order 2
@@ -101,12 +103,12 @@ class MatchingEngineTest {
             engine.submit(sell(4, 100, 1));           // queues behind order 2
             var r = engine.submit(buy(5, 100, 1));     // must hit order 2 first, not order 4
             assertEquals(1, r.trades().size());
-            assertEquals(2L, r.trades().get(0).askOrderId());
+            assertEquals(2L, r.trades().getFirst().askOrderId());
         }
 
         @Test
         void sweepsMultipleLevelsInPriceOrder() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 101, 2));
             engine.submit(sell(2, 100, 3));
             engine.submit(sell(3, 102, 4));
@@ -122,14 +124,14 @@ class MatchingEngineTest {
 
         @Test
         void duplicateIdRejected() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(buy(1, 100, 5));
             assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 99, 5)));
         }
 
         @Test
         void filledIdCannotBeResubmitted() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 100, 5));
             engine.submit(buy(2, 100, 5));           // both fully filled
             assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 100, 5)));
@@ -138,7 +140,7 @@ class MatchingEngineTest {
 
         @Test
         void canceledIdCannotBeResubmitted() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(buy(1, 100, 5));
             engine.cancel(1);
             assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 100, 5)));
@@ -146,8 +148,8 @@ class MatchingEngineTest {
 
         @Test
         void cancelThrowsWhenOpenOrderMissingFromBook() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(buy(1, 100, 5));
             book.bids().get(100L).clear();            // corrupt: open says 1, book lost it
             assertThrows(IllegalStateException.class, () -> engine.cancel(1));
@@ -155,8 +157,8 @@ class MatchingEngineTest {
 
         @Test
         void incomingPartiallyFillsMultipleLevelsAndRestsRemainder() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(sell(1, 100, 3));
             engine.submit(sell(2, 101, 4));
             engine.submit(sell(3, 102, 5));
@@ -174,7 +176,7 @@ class MatchingEngineTest {
 
         @Test
         void nullOrderRejectedByBook() {
-            var book = new OrderBook(BTC);
+            var book = new PriceTimeOrderBook(BTC);
             assertThrows(NullPointerException.class, () -> book.add(null));
             assertThrows(NullPointerException.class, () -> book.requeue(null));
             assertThrows(NullPointerException.class, () -> book.remove(null));
@@ -187,7 +189,7 @@ class MatchingEngineTest {
 
         @Test
         void cancelRemovesOpenOrder() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(buy(1, 100, 5));
             assertTrue(engine.cancel(1));
             assertFalse(engine.isOpen(1));
@@ -196,14 +198,14 @@ class MatchingEngineTest {
 
         @Test
         void cancelUnknownIdReturnsFalse() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             assertFalse(engine.cancel(42));
         }
 
         @Test
         void cancelledLevelIsPrunedFromBest() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(buy(1, 101, 5));
             engine.submit(buy(2, 99, 5));
             engine.cancel(1);
@@ -217,22 +219,22 @@ class MatchingEngineTest {
 
         @Test
         void negativePricesMatchCorrectly() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, -100, 5));
             var r = engine.submit(buy(2, -100, 5));
             assertEquals(1, r.trades().size());
-            assertEquals(-100L, r.trades().get(0).pxTicks());
+            assertEquals(-100L, r.trades().getFirst().pxTicks());
             assertFalse(engine.isOpen(1));
             assertFalse(engine.isOpen(2));
         }
 
         @Test
         void crossingBelowZeroAsk() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, -100, 5));
             var r = engine.submit(buy(2, -99, 5));    // -99 >= -100 crosses
             assertEquals(1, r.trades().size());
-            assertEquals(-100L, r.trades().get(0).pxTicks());
+            assertEquals(-100L, r.trades().getFirst().pxTicks());
         }
     }
 
@@ -242,8 +244,8 @@ class MatchingEngineTest {
 
         @Test
         void quantityConservationUnderRandomFlow() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             var rnd = new Random(20260919L);
             long totalSubmitted = 0, totalTraded = 0;
             for (int i = 1; i <= 2_000; i++) {
@@ -251,7 +253,7 @@ class MatchingEngineTest {
                 long px = rnd.nextLong(95, 106);
                 long qty = rnd.nextLong(1, 20);
                 totalSubmitted += qty;
-                var r = engine.submit(new Order(i, side, px, qty, OrderType.LIMIT));
+                var r = engine.submit(new SimpleOrder(i, side, px, qty, OrderType.LIMIT));
                 for (Trade t : r.trades()) totalTraded += t.qtyTicks();
             }
             long openOnBook = 0;
@@ -263,7 +265,7 @@ class MatchingEngineTest {
 
         @Test
         void remainingPlusFilledEqualsSubmitted() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 100, 5));
             engine.submit(sell(2, 101, 5));
             var r = engine.submit(buy(3, 101, 7));    // fills 5@100 + 2@101
@@ -273,7 +275,7 @@ class MatchingEngineTest {
 
         @Test
         void totalTradedNeverExceedsResting() {
-            var engine = new MatchingEngine(new OrderBook(BTC));
+            var engine = new SimpleMatchingEngine(new PriceTimeOrderBook(BTC));
             engine.submit(sell(1, 100, 5));
             var r = engine.submit(buy(2, 100, 100));  // can only fill 5
             assertEquals(5L, r.trades().stream().mapToLong(Trade::qtyTicks).sum());
@@ -282,14 +284,14 @@ class MatchingEngineTest {
 
         @Test
         void openOrdersBookAndEngineAgree() {
-            var book = new OrderBook(BTC);
-            var engine = new MatchingEngine(book);
+            var book = new PriceTimeOrderBook(BTC);
+            var engine = new SimpleMatchingEngine(book);
             engine.submit(buy(1, 100, 5));
             engine.submit(buy(2, 101, 5));
             engine.submit(sell(3, 110, 5));
             assertEquals(3, engine.openCount());
-            assertEquals(3, book.bids().values().stream().mapToInt(q -> q.size()).sum()
-                    + book.asks().values().stream().mapToInt(q -> q.size()).sum());
+            assertEquals(3, book.bids().values().stream().mapToInt(ArrayDeque::size).sum()
+                    + book.asks().values().stream().mapToInt(ArrayDeque::size).sum());
             engine.cancel(2);
             assertEquals(2, engine.openCount());
         }
