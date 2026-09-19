@@ -4,6 +4,7 @@ import net.kfyn.ob.entity.Instrument;
 import net.kfyn.ob.entity.Order;
 import net.kfyn.ob.entity.OrderBook;
 import net.kfyn.ob.entity.Side;
+import net.kfyn.ob.entity.SimpleOrder;
 
 import java.util.*;
 
@@ -37,6 +38,31 @@ public class PriceTimeOrderBook implements OrderBook {
         if (level == null || !level.remove(o)) return false;
         if (level.isEmpty()) side.remove(o.pxTicks());
         return true;
+    }
+
+    @Override public Order amend(Order o, long newPxTicks, long newQtyTicks) {
+        Objects.requireNonNull(o, "order");
+        if (newQtyTicks <= 0) throw new IllegalArgumentException("newQtyTicks must be positive: " + newQtyTicks);
+        TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
+        ArrayDeque<Order> level = side.get(o.pxTicks());
+        if (level == null || !level.contains(o)) {
+            throw new IllegalStateException("order not resting on this book: " + o.id());
+        }
+        Order amended = new SimpleOrder(o.id(), o.side(), newPxTicks, newQtyTicks, o.orderType());
+        if (newPxTicks == o.pxTicks() && newQtyTicks < o.qtyTicks()) {
+            // same level, reduced qty: keep queue position (rebuild in place)
+            ArrayDeque<Order> rebuilt = new ArrayDeque<>(level.size());
+            for (Order resting : level) {
+                rebuilt.addLast(resting == o ? amended : resting);
+            }
+            side.put(newPxTicks, rebuilt);
+        } else {
+            // price change or qty increase: lose time priority, join back of level
+            level.remove(o);
+            if (level.isEmpty()) side.remove(o.pxTicks());
+            side.computeIfAbsent(newPxTicks, _ -> new ArrayDeque<>()).addLast(amended);
+        }
+        return amended;
     }
 
     @Override public Order pollBest(Side s) {
