@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.OptionalLong;
 import java.util.Random;
@@ -223,6 +224,53 @@ class PriceTimeAuctionEngineTest {
         void rejectsNullLists() {
             assertThrows(NullPointerException.class, () -> auction.uncross(null, List.of()));
             assertThrows(NullPointerException.class, () -> auction.uncross(List.of(), null));
+        }
+
+        @Test
+        void rejectsNullElements() {
+            assertThrows(NullPointerException.class,
+                    () -> auction.uncross(Collections.singletonList(null), List.of(sell(2, 100, 5))));
+            assertThrows(NullPointerException.class,
+                    () -> auction.uncross(List.of(buy(1, 100, 5)), Collections.singletonList(null)));
+        }
+
+        @Test
+        void rejectsNonPositiveQty() {
+            // SimpleOrder already enforces qty > 0; the engine re-checks at its
+            // own boundary so any Order implementation is covered.
+            assertThrows(IllegalArgumentException.class,
+                    () -> auction.uncross(List.of(zeroQty(1, Side.BUY, 100)), List.of(sell(2, 100, 5))));
+            assertThrows(IllegalArgumentException.class,
+                    () -> auction.uncross(List.of(buy(1, 100, 5)), List.of(zeroQty(2, Side.SELL, 100))));
+        }
+
+        private static Order zeroQty(long id, Side side, long px) {
+            return new Order() {
+                @Override
+                public long id() {
+                    return id;
+                }
+
+                @Override
+                public Side side() {
+                    return side;
+                }
+
+                @Override
+                public long pxTicks() {
+                    return px;
+                }
+
+                @Override
+                public long qtyTicks() {
+                    return 0;
+                }
+
+                @Override
+                public OrderType orderType() {
+                    return OrderType.LIMIT;
+                }
+            };
         }
     }
 

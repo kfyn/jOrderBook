@@ -54,10 +54,19 @@ matched volume is that volume. Buy orders priced >= the clearing price and
 sell orders priced <= it are eligible; allocation is price-time (FIFO) at the
 clearing price, and unexecuted remainder is reported as leftover orders.
 
+An uncrossed book (best bid below best ask) cannot trade at any price, so the
+engine returns the no-cross result without aggregating or sweeping; the touch
+case (best bid == best ask) still crosses.
+
 Tie-break (several prices with the same maximum volume): prefer the price
 with the smallest demand/supply imbalance; on equal imbalance the highest tied
 price under pure buy pressure, otherwise the lowest. The problem statement
 leaves this open — the rule is deterministic and covered by tests.
+
+Orders are identified by their id, and the book/engine treat an order as equal
+to any value-equal instance (the `Order` records have no hidden identity).
+Passing a value-equal instance where the resting order is expected is
+supported; callers that create their own instances must keep ids unique.
 
 `PriceTimeOrderBook` runs the same uncross directly on the resting book:
 `uncross()` is a pure query (no state change); `close()` additionally settles
@@ -77,6 +86,29 @@ and returns the result.
 
 External dependencies: JUnit 6 (test scope only) and JMH (benchmark source
 set only). The main and test code uses only the JDK.
+
+## Interpreting the JMH results
+
+The numbers in `build/jmh/results.json` are **relative** micro-benchmark results, not
+absolute capacity or latency figures. They are only meaningful when comparing builds,
+commits or code changes measured **on the same host, with the same JDK build, the same
+JVM flags and under comparable load**. Do not compare scores across machines, CI
+runners, cloud instances or JDK vendors/builds, and do not quote an "ops/s" figure as
+a service guarantee: on this project the same engine measured roughly twice as fast on
+a local machine as on a shared CI runner (e.g. `uncrossNoCross` 256 levels: ~545k
+vs ~300k ops/s for the same commit).
+
+Reading a result: `primaryMetric.score` is throughput (ops/s) and `scoreError` is the
+half-width of the confidence interval — if two runs' `score ± scoreError` intervals
+overlap, the difference is not statistically significant. Results from `-prof gc`
+(`gc.count`, `gc.time`, and `gc.alloc.rate.norm` = bytes allocated per operation where
+the running JDK build exposes per-thread allocation counters) are the memory evidence.
+
+`./gradlew jmhSmoke` is the CI regression gate: short rounds (`-wi 2 -i 3 -r 1s -w 1s`)
+and two forks, good for catching large regressions, too noisy for capacity planning.
+`./gradlew jmh` is the fuller run (3 warmup + 5 measurement iterations, 2 forks); pass
+`-PjmhArgs="..."` for extra JMH flags. Treat both as "is this commit faster or slower
+than the last one on this host?", never as a hardware specification.
 
 ## CI
 

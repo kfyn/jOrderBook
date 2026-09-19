@@ -178,6 +178,12 @@ class AmendTest {
             var clone = buy(1, 100, 10);
             var amended = book.amend(clone, 100, 5);
             assertEquals(5, amended.qtyTicks());
+            // ...and the substitution actually reached the book: the returned
+            // instance rests with the reduced quantity (the clone's old qty
+            // must NOT still be resting)
+            assertSame(amended, book.bids().get(100L).iterator().next());
+            assertEquals(5, book.bids().get(100L).iterator().next().qtyTicks());
+            assertFalse(book.remove(clone), "the qty-10 clone no longer matches anything resting");
         }
 
         @Test

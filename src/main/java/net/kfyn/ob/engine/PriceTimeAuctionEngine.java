@@ -28,15 +28,21 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     public AuctionResult uncross(List<Order> bids, List<Order> asks) {
         Objects.requireNonNull(bids, "bids");
         Objects.requireNonNull(asks, "asks");
-        // Validate sides and find the extreme prices in the same pass.
+        // Validate sides and quantities at this boundary, and find the extreme
+        // prices, in the same pass. Non-positive quantities are rejected here
+        // rather than silently producing a zero-volume sweep.
         long bestBid = Long.MIN_VALUE;
         for (Order b : bids) {
+            Objects.requireNonNull(b, "bid");
             if (b.side() != Side.BUY) throw new IllegalArgumentException("bid side: " + b.side());
+            if (b.qtyTicks() <= 0) throw new IllegalArgumentException("bid qty must be positive: " + b.qtyTicks());
             if (b.pxTicks() > bestBid) bestBid = b.pxTicks();
         }
         long bestAsk = Long.MAX_VALUE;
         for (Order a : asks) {
+            Objects.requireNonNull(a, "ask");
             if (a.side() != Side.SELL) throw new IllegalArgumentException("ask side: " + a.side());
+            if (a.qtyTicks() <= 0) throw new IllegalArgumentException("ask qty must be positive: " + a.qtyTicks());
             if (a.pxTicks() < bestAsk) bestAsk = a.pxTicks();
         }
         if (bids.isEmpty() || asks.isEmpty()) {
@@ -63,6 +69,8 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
         for (long price : prices) {
             supply = Math.addExact(supply, askQty.getOrDefault(price, 0L));
             long volume = Math.min(demand, supply);
+            // demand and supply are non-negative and bounded by sums already
+            // checked with addExact, so their difference cannot overflow.
             long imb = Math.abs(demand - supply);
             if (volume > bestVol || (volume == bestVol && imb < bestImb)) {
                 bestVol = volume;
@@ -74,10 +82,10 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
             }
             demand = Math.subtractExact(demand, bidQty.getOrDefault(price, 0L));
         }
-        if (bestVol == 0) {
-            return uncrossed(bids, asks);
-        }
-
+        // bestVol > 0 is guaranteed here: both sides are non-empty, the early
+        // exit above ruled out bestBid < bestAsk, and every quantity is
+        // positive, so V(bestBid) >= min(bidQty(bestBid), askQty(bestAsk)) > 0.
+        // No zero-volume fallback is reachable.
         return execute(selectPrice(ties), bids, asks);
     }
 
@@ -117,6 +125,8 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
             long fill = Math.min(remB[i], remA[j]);
             trades.add(new SimpleTrade(execBids.get(i).id(), execAsks.get(j).id(), price, fill));
             executed = Math.addExact(executed, fill);
+            // fill == min(remB[i], remA[j]) >= 0, so neither decrement can
+            // underflow or overflow.
             remB[i] -= fill;
             remA[j] -= fill;
             if (remB[i] == 0) i++;
@@ -152,9 +162,15 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     }
 
     private static AuctionResult uncrossed(List<Order> bids, List<Order> asks) {
-        // Ownership contract: the record defensively copies its lists, so
-        // hand it a pre-immutable list and the record's copyOf is a no-op —
-        // exactly one copy of the combined leftovers is made on this path.
+        // Ownership contract: AuctionResult copies defensively, so handing it
+        // an already-immutable list makes that copy a no-op. This does NOT
+        // reduce the total cost of the path: the combined leftovers still take
+        // one copy to build the list and one in List.copyOf, exactly as
+        // before — the copy is only attributed to the caller instead of the
+        // record. What this does buy is an explicit immutability guarantee at
+        // the call site.
+        // kdev: ceiling — a true single copy would require AuctionResult to
+        // trust a caller-supplied immutable list; safety was kept instead.
         List<Order> leftovers = new ArrayList<>(bids.size() + asks.size());
         leftovers.addAll(bids);
         leftovers.addAll(asks);

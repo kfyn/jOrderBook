@@ -66,6 +66,26 @@ class MainTest {
         assertTrue(out.contains("unfilled (leftover) orders : 3"), out);
     }
 
+    @Test
+    @DisplayName("no cross: reports that no auction price matched")
+    void noCrossPrintsNoMatchingPrice() {
+        byte[] captured = captureOutput(() -> Main.printOutcome(Main.uncrossNoCross()));
+        String out = new String(captured, StandardCharsets.UTF_8);
+        assertTrue(out.contains("no cross: no matching auction price"), out);
+    }
+
+    private static byte[] captureOutput(Runnable action) {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
+        try {
+            action.run();
+            return buf.toByteArray();
+        } finally {
+            System.setOut(originalOut);
+        }
+    }
+
     private static long volumeAt(long px) {
         long pxTicks = Main.BHP.pxTicks(java.math.BigDecimal.valueOf(px));
         long demand = Main.bids().stream()

@@ -236,8 +236,10 @@ class PriceTimeOrderBookTest {
             assertEquals(OptionalLong.of(99), r.priceTicks());
             assertEquals(900, r.volumeTicks());
             assertEquals(3, r.trades().size());
-            // clearing 99: bid #1 100@100 filled by ask #6 700@98; bid #2 takes the
-            // remaining 600@98 and 200@99 -> reduced to 200; ask #4 102 untouched
+            // clearing 99; asks are eligible in price-time order (#5 200@99 then #6
+            // 700@98): bid #1 100@100 fills 100 of ask #5; bid #2 1000@99 takes
+            // ask #5's remaining 100 and sweeps ask #6's 700 -> reduced to 200;
+            // ask #4 50000@102 is ineligible and untouched
             assertEquals(List.of(2L, 3L), flatten(book.bids()).stream().map(Order::id).toList());
             assertEquals(List.of(4L), flatten(book.asks()).stream().map(Order::id).toList());
             assertEquals(200, book.bids().get(99L).iterator().next().qtyTicks());
@@ -246,6 +248,19 @@ class PriceTimeOrderBookTest {
             assertFalse(book.bids().containsKey(100L));   // fully filled level pruned
             assertFalse(book.asks().containsKey(98L));
             assertFalse(book.asks().containsKey(99L));
+            assertEquals(99L, book.bestBid().getKey());
+        }
+
+        @Test
+        void pollBestSkipsDrainedLevelsAndPrunesThem() {
+            var book = new PriceTimeOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(buy(1, 101, 5));
+            book.add(buy(2, 100, 7));
+            book.add(buy(3, 99, 5));
+            book.bids().get(101L).clear();   // drain the best level through the read view
+            assertEquals(2L, book.pollBest(Side.BUY).id());   // drained 101 skipped, 100 consumed
+            assertFalse(book.bids().containsKey(101L));       // ...and pruned
+            assertEquals(1, book.bids().size());              // only the 99 level remains
             assertEquals(99L, book.bestBid().getKey());
         }
 

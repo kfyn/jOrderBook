@@ -58,7 +58,10 @@ public class PriceTimeOrderBook implements OrderBook {
             // same level, reduced qty: keep queue position (rebuild in place)
             ArrayDeque<Order> rebuilt = new ArrayDeque<>(level.size());
             for (Order resting : level) {
-                rebuilt.addLast(resting == o ? amended : resting);
+                // value equality, matching the contains() guard above: the
+                // caller may pass a value-equal instance (SimpleOrder is a
+                // record) rather than the exact resting reference
+                rebuilt.addLast(Objects.equals(resting, o) ? amended : resting);
             }
             side.put(newPxTicks, rebuilt);
         } else {
