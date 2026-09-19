@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Random;
 
+import net.kfyn.ob.simple.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class OrderBookTest {
 
     private static Order order(long id, Side side, long pxTicks, long qtyTicks) {
-        return new Order(id, side, pxTicks, qtyTicks, OrderType.LIMIT);
+        return new SimpleOrder(id, side, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
     private static Order buy(long id, long pxTicks, long qtyTicks) {
@@ -42,9 +44,9 @@ class OrderBookTest {
         @Test
         void rejectsNullEnums() {
             assertThrows(IllegalArgumentException.class,
-                    () -> new Order(1, null, 1, 1, OrderType.LIMIT));
+                    () -> new SimpleOrder(1, null, 1, 1, OrderType.LIMIT));
             assertThrows(IllegalArgumentException.class,
-                    () -> new Order(1, Side.BUY, 1, 1, null));
+                    () -> new SimpleOrder(1, Side.BUY, 1, 1, null));
         }
     }
 
@@ -54,13 +56,13 @@ class OrderBookTest {
 
         @Test
         void rejectsNonPositiveQty() {
-            assertThrows(IllegalArgumentException.class, () -> new Trade(1, 2, 100, 0));
-            assertThrows(IllegalArgumentException.class, () -> new Trade(1, 2, 100, -5));
+            assertThrows(IllegalArgumentException.class, () -> new SimpleTrade(1, 2, 100, 0));
+            assertThrows(IllegalArgumentException.class, () -> new SimpleTrade(1, 2, 100, -5));
         }
 
         @Test
         void acceptsNegativePx() {
-            var t = new Trade(1, 2, -100, 5);
+            var t = new SimpleTrade(1, 2, -100, 5);
             assertEquals(-100L, t.pxTicks());
         }
     }
@@ -70,7 +72,7 @@ class OrderBookTest {
     class BookOps {
 
         OrderBook book() {
-            return new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            return new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
         }
 
         @Test
@@ -127,7 +129,7 @@ class OrderBookTest {
 
         @Test
         void negativePriceLevels() {
-            var book = new OrderBook(Instrument.of("SPREAD", "0.10", "1"));
+            var book = new SimpleOrderBook(Instrument.of("SPREAD", "0.10", "1"));
             book.add(order(1, Side.SELL, -100, 5));
             book.add(order(2, Side.SELL, -200, 5));
             assertEquals(-200L, book.bestAsk().getKey());   // best ask = lowest price
@@ -135,12 +137,12 @@ class OrderBookTest {
 
         @Test
         void nullInstrumentRejected() {
-            assertThrows(NullPointerException.class, () -> new OrderBook(null));
+            assertThrows(NullPointerException.class, () -> new SimpleOrderBook(null));
         }
 
         @Test
         void removeDeletesOrderAndPrunesLevel() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(buy(1, 100, 5));
             book.add(buy(2, 100, 7));
             assertTrue(book.remove(buy(1, 100, 5)));   // record equality: same id+px+qty+side
@@ -152,7 +154,7 @@ class OrderBookTest {
 
         @Test
         void removeUnknownReturnsFalse() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(buy(1, 100, 5));
             assertFalse(book.remove(buy(9, 100, 5)));   // no such order at level
             assertFalse(book.remove(buy(1, 101, 5)));   // no such level
@@ -160,7 +162,7 @@ class OrderBookTest {
 
         @Test
         void pollBestReturnsFifoHeadAndPrunes() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(buy(1, 100, 5));
             book.add(buy(2, 100, 7));
             book.add(buy(3, 99, 5));
@@ -180,7 +182,7 @@ class OrderBookTest {
 
         @Test
         void bidsAndAsksAreUnmodifiable() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(order(1, Side.BUY, 100, 5));
             assertThrows(UnsupportedOperationException.class,
                     () -> book.bids().put(101L, new java.util.ArrayDeque<>()));
@@ -190,7 +192,7 @@ class OrderBookTest {
 
         @Test
         void levelDequesRemainLiveThroughView() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             book.add(order(1, Side.BUY, 100, 5));
             book.bids().get(100L).clear();   // deque deliberately live: engine drains levels through best
             assertTrue(book.bids().get(100L).isEmpty());
@@ -204,14 +206,14 @@ class OrderBookTest {
         @Test
         void instrumentIsCarriedAndIdentifiesUnits() {
             var i = Instrument.of("BTCUSDT", "0.10", "0.001");
-            var book = new OrderBook(i);
+            var book = new SimpleOrderBook(i);
             assertSame(i, book.instrument());
             assertEquals("BTCUSDT", book.instrument().symbol());
         }
 
         @Test
         void boundaryConversionThroughBook() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             long pxTicks = book.instrument().pxTicks(new BigDecimal("5000.00"));
             book.add(order(1, Side.BUY, pxTicks, book.instrument().qtyTicks(new BigDecimal("2.000"))));
             assertEquals(0, new BigDecimal("5000.00").compareTo(book.instrument().pxValue(pxTicks)));
@@ -219,7 +221,7 @@ class OrderBookTest {
 
         @Test
         void longCompareTotalOrderMatchesValueOrder() {
-            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            var book = new SimpleOrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
             var rnd = new Random(20260919L);
             for (int i = 0; i < 10_000; i++) {
                 long t1 = rnd.nextLong(Long.MIN_VALUE, Long.MAX_VALUE);

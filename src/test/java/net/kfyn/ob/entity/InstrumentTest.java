@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
+import net.kfyn.ob.simple.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class InstrumentTest {
@@ -31,7 +33,7 @@ class InstrumentTest {
         @Test
         void rejectsScaleAbove18() {
             assertThrows(IllegalArgumentException.class,
-                    () -> new Instrument("X", 1, 19, 1, 0));
+                    () -> new SimpleInstrument("X", 1, 19, 1, 0));
         }
 
         @Test
