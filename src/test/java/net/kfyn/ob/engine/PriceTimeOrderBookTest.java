@@ -91,15 +91,6 @@ class PriceTimeOrderBookTest {
         }
 
         @Test
-        void requeueMovesOrderToFrontOfLevel() {
-            var book = book();
-            book.add(order(1, Side.BUY, 100, 5));
-            book.add(order(2, Side.BUY, 100, 7));
-            book.requeue(order(1, Side.BUY, 100, 5));
-            assertEquals(1, Objects.requireNonNull(book.bids().get(100L).iterator().next()).id());
-        }
-
-        @Test
         void bestBidIsHighestAskIsLowest() {
             var book = book();
             book.add(order(1, Side.BUY, 98, 5));

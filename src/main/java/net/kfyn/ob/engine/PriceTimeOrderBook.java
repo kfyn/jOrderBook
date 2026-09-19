@@ -29,12 +29,6 @@ public class PriceTimeOrderBook implements OrderBook {
     }
 
     @Override
-    public void requeue(Order o) {
-        Objects.requireNonNull(o, "order");
-        side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addFirst(o);
-    }
-
-    @Override
     public boolean remove(Order o) {
         Objects.requireNonNull(o, "order");
         TreeMap<Long, ArrayDeque<Order>> side = side(o.side());

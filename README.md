@@ -54,6 +54,14 @@ matched volume is that volume. Buy orders priced >= the clearing price and
 sell orders priced <= it are eligible; allocation is price-time (FIFO) at the
 clearing price, and unexecuted remainder is reported as leftover orders.
 
+Priority ownership: the engine only computes the clearing price and allocates
+in the exact order it is given — it sorts nothing and has no source of time.
+Price-then-time priority is established by `PriceTimeOrderBook`, which flattens
+the book by descending bid price (ascending ask price) and FIFO within each
+level. Callers of `AuctionEngine.uncross` directly must pass bids/asks already
+ordered by price/time; otherwise eligible orders are filled in the supplied
+order and a better-priced order can be filled last.
+
 An uncrossed book (best bid below best ask) cannot trade at any price, so the
 engine returns the no-cross result without aggregating or sweeping; the touch
 case (best bid == best ask) still crosses.
@@ -74,12 +82,42 @@ the book to the auction outcome — fully filled orders removed, partially
 filled orders reduced (new instances, same id), unfilled orders left resting —
 and returns the result.
 
+## Outstanding work
+
+Deliberately out of scope for this exercise; listed so the current boundaries
+are explicit.
+
+**Order types**
+- **Market orders**: only limit orders exist (`OrderType` has a single `LIMIT`
+  constant). A market order has no price and must not rest on a level; supporting
+  it needs a separate book side (or a sentinel price), an eligibility rule at the
+  clearing price, and a rule for residual unfilled quantity after the auction.
+
+**Instrument tick/lot constraints**
+- **Price tick ladder**: prices are only validated as whole price ticks
+  (`SimpleInstrument.pxTicks` rejects off-tick values), but there is no explicit
+  ladder/schedule of permitted prices beyond a fixed tick size. Supporting a real
+  ladder (per-price-band tick sizes, or an enumerated set of permitted prices)
+  would move validation and rounding into the instrument.
+- **Quantity lot sizes**: quantities use a fixed lot (`SimpleInstrument`
+  quantity tick) and reject non-multiples; there is no round-lot/minimum-lot
+  model, no lot-size change over time, and no handling of residual odd lots.
+
+**Book & engine**
+- Duplicate order ids are not enforced (`add()` accepts them); the book and
+  engine treat orders as value-equal, so callers must keep ids unique.
+- `remove()`/`amend()` are O(level size) (linear scan of the level's queue);
+  fine at this scale, an intrusive linked list would make them O(1).
+- The auction result materialises every trade and leftover in memory; very large
+  crossed books would need streaming or a capped result.
+- `bids()`/`asks()` return read-only maps whose level collections remain live.
+
 ## Layout
 
 | Path | Contents |
 |---|---|
 | `src/main/java/net/kfyn/ob/entity` | Order, Trade, Instrument, OrderBook abstractions |
-| `src/main/java/net/kfyn/ob/engine` | Price/time order book and auction uncrossing engine |
+| `src/main/java/net/kfyn/ob/engine` | Price/time order book and maximum-volume auction engine (`MaxVolAuctionEngine`) |
 | `src/main/java/net/kfyn/ob/Main.java` | Demo: uncrosses the book from the problem statement |
 | `src/test/java` | JUnit 6 tests incl. a randomized auction-vs-reference property test |
 | `src/jmh/java` | JMH benchmarks of the auction uncross (separate source set; JMH never leaks into main/test code) |
