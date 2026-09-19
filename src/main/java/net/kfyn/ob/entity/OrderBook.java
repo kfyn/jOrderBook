@@ -19,14 +19,17 @@ public class OrderBook {
     }
 
     public void add(Order o) {
+        Objects.requireNonNull(o, "order");
         side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addLast(o);
     }
 
     public void requeue(Order o) {
+        Objects.requireNonNull(o, "order");
         side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addFirst(o);
     }
 
     public boolean remove(Order o) {
+        Objects.requireNonNull(o, "order");
         TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
         ArrayDeque<Order> level = side.get(o.pxTicks());
         if (level == null || !level.remove(o)) return false;

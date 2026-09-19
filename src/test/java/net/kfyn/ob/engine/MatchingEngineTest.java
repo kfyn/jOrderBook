@@ -126,6 +126,59 @@ class MatchingEngineTest {
             engine.submit(buy(1, 100, 5));
             assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 99, 5)));
         }
+
+        @Test
+        void filledIdCannotBeResubmitted() {
+            var engine = new MatchingEngine(new OrderBook(BTC));
+            engine.submit(sell(1, 100, 5));
+            engine.submit(buy(2, 100, 5));           // both fully filled
+            assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 100, 5)));
+            assertThrows(IllegalArgumentException.class, () -> engine.submit(sell(2, 100, 5)));
+        }
+
+        @Test
+        void canceledIdCannotBeResubmitted() {
+            var engine = new MatchingEngine(new OrderBook(BTC));
+            engine.submit(buy(1, 100, 5));
+            engine.cancel(1);
+            assertThrows(IllegalArgumentException.class, () -> engine.submit(buy(1, 100, 5)));
+        }
+
+        @Test
+        void cancelThrowsWhenOpenOrderMissingFromBook() {
+            var book = new OrderBook(BTC);
+            var engine = new MatchingEngine(book);
+            engine.submit(buy(1, 100, 5));
+            book.bids().get(100L).clear();            // corrupt: open says 1, book lost it
+            assertThrows(IllegalStateException.class, () -> engine.cancel(1));
+        }
+
+        @Test
+        void incomingPartiallyFillsMultipleLevelsAndRestsRemainder() {
+            var book = new OrderBook(BTC);
+            var engine = new MatchingEngine(book);
+            engine.submit(sell(1, 100, 3));
+            engine.submit(sell(2, 101, 4));
+            engine.submit(sell(3, 102, 5));
+            var r = engine.submit(buy(4, 103, 14));   // 3@100 + 4@101 + 5@102 = 12 filled
+            assertEquals(3, r.trades().size());
+            assertEquals(100L, r.trades().get(0).pxTicks());
+            assertEquals(101L, r.trades().get(1).pxTicks());
+            assertEquals(102L, r.trades().get(2).pxTicks());
+            assertEquals(12, r.trades().stream().mapToLong(Trade::qtyTicks).sum());
+            assertEquals(2, r.remainingQtyTicks());          // remainder rests at 103
+            assertTrue(engine.isOpen(4));
+            assertEquals(103L, book.bestBid().getKey());
+            assertTrue(book.asks().isEmpty());               // all asks consumed
+        }
+
+        @Test
+        void nullOrderRejectedByBook() {
+            var book = new OrderBook(BTC);
+            assertThrows(NullPointerException.class, () -> book.add(null));
+            assertThrows(NullPointerException.class, () -> book.requeue(null));
+            assertThrows(NullPointerException.class, () -> book.remove(null));
+        }
     }
 
     @Nested

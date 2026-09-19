@@ -13,10 +13,15 @@ import java.util.*;
  * executes against the book's best at the resting price, unfilled
  * remainder rests. Partially filled resting orders keep their queue
  * position. No self-trade prevention. Single-threaded.
+ *
+ * Exactly one MatchingEngine may operate on a given OrderBook.
+ * Order ids must be unique for the lifetime of the engine: filled or
+ * canceled ids cannot be resubmitted.
  */
 public class MatchingEngine {
     private final OrderBook book;
     private final Map<Long, Order> open = new HashMap<>();
+    private final Set<Long> submitted = new HashSet<>();
 
     public MatchingEngine(OrderBook book) {
         this.book = Objects.requireNonNull(book, "book");
@@ -24,8 +29,8 @@ public class MatchingEngine {
 
     public MatchResult submit(Order incoming) {
         Objects.requireNonNull(incoming, "order");
-        if (open.containsKey(incoming.id()))
-            throw new IllegalArgumentException("duplicate open order id: " + incoming.id());
+        if (!submitted.add(incoming.id()))
+            throw new IllegalArgumentException("duplicate order id: " + incoming.id());
 
         List<Trade> trades = new ArrayList<>();
         long remaining = incoming.qtyTicks();
@@ -59,9 +64,12 @@ public class MatchingEngine {
     }
 
     public boolean cancel(long orderId) {
-        Order o = open.remove(orderId);
+        Order o = open.get(orderId);
         if (o == null) return false;
-        return book.remove(o);
+        if (!book.remove(o))
+            throw new IllegalStateException("open order missing from book: " + orderId);
+        open.remove(orderId);
+        return true;
     }
 
     public boolean isOpen(long orderId) {
