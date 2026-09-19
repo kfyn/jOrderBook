@@ -26,6 +26,30 @@ public class OrderBook {
         side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addFirst(o);
     }
 
+    public boolean remove(Order o) {
+        TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
+        ArrayDeque<Order> level = side.get(o.pxTicks());
+        if (level == null || !level.remove(o)) return false;
+        if (level.isEmpty()) side.remove(o.pxTicks());
+        return true;
+    }
+
+    public Order pollBest(Side s) {
+        TreeMap<Long, ArrayDeque<Order>> side = side(s);
+        while (!side.isEmpty()) {
+            var e = side.firstEntry();
+            ArrayDeque<Order> level = e.getValue();
+            if (level.isEmpty()) {
+                side.pollFirstEntry();
+                continue;
+            }
+            Order o = level.pollFirst();
+            if (level.isEmpty()) side.remove(e.getKey());
+            return o;
+        }
+        return null;
+    }
+
     public Map.Entry<Long, ArrayDeque<Order>> bestBid() {
         return best(bids);
     }

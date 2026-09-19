@@ -15,6 +15,14 @@ class OrderBookTest {
         return new Order(id, side, pxTicks, qtyTicks, OrderType.LIMIT);
     }
 
+    private static Order buy(long id, long pxTicks, long qtyTicks) {
+        return order(id, Side.BUY, pxTicks, qtyTicks);
+    }
+
+    private static Order sell(long id, long pxTicks, long qtyTicks) {
+        return order(id, Side.SELL, pxTicks, qtyTicks);
+    }
+
     @Nested
     @DisplayName("order validation")
     class OrderValidation {
@@ -128,6 +136,41 @@ class OrderBookTest {
         @Test
         void nullInstrumentRejected() {
             assertThrows(NullPointerException.class, () -> new OrderBook(null));
+        }
+
+        @Test
+        void removeDeletesOrderAndPrunesLevel() {
+            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(buy(1, 100, 5));
+            book.add(buy(2, 100, 7));
+            assertTrue(book.remove(buy(1, 100, 5)));   // record equality: same id+px+qty+side
+            assertEquals(1, book.bids().get(100L).size());
+            assertTrue(book.remove(buy(2, 100, 7)));
+            assertFalse(book.bids().containsKey(100L));  // level pruned eagerly
+            assertNull(book.bestBid());
+        }
+
+        @Test
+        void removeUnknownReturnsFalse() {
+            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(buy(1, 100, 5));
+            assertFalse(book.remove(buy(9, 100, 5)));   // no such order at level
+            assertFalse(book.remove(buy(1, 101, 5)));   // no such level
+        }
+
+        @Test
+        void pollBestReturnsFifoHeadAndPrunes() {
+            var book = new OrderBook(Instrument.of("BTCUSDT", "0.10", "0.001"));
+            book.add(buy(1, 100, 5));
+            book.add(buy(2, 100, 7));
+            book.add(buy(3, 99, 5));
+            var head = book.pollBest(Side.BUY);
+            assertEquals(1L, head.id());
+            assertEquals(1, book.bids().get(100L).size());   // only order 2 remains
+            book.pollBest(Side.BUY);                       // order 2 -> level 100 pruned
+            assertEquals(99L, book.bestBid().getKey());     // order 3 still resting
+            assertFalse(book.bids().containsKey(100L));
+            assertNull(book.pollBest(Side.SELL));
         }
     }
 

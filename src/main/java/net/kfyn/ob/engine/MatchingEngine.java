@@ -8,10 +8,11 @@ import net.kfyn.ob.entity.Trade;
 import java.util.*;
 
 /**
- * Price-time priority matching over an OrderBook. Incoming executes against
- * resting orders at the resting price; unfilled remainder rests on the book.
- * Partially filled resting orders keep their FIFO position. No self-trade
- * prevention. Single-threaded.
+ * Price-time priority matching over an OrderBook. Priority (comparator,
+ * FIFO) is book-owned; the engine owns crossing policy only: incoming
+ * executes against the book's best at the resting price, unfilled
+ * remainder rests. Partially filled resting orders keep their queue
+ * position. No self-trade prevention. Single-threaded.
  */
 public class MatchingEngine {
     private final OrderBook book;
@@ -33,11 +34,11 @@ public class MatchingEngine {
             var best = incoming.side() == Side.BUY ? book.bestAsk() : book.bestBid();
             if (best == null || !crosses(incoming, best.getKey())) break;
 
-            Order resting = best.getValue().pollFirst();
+            Order resting = book.pollBest(incoming.side().opposite());
             long fill = Math.min(remaining, resting.qtyTicks());
             if (resting.qtyTicks() > fill) {
                 Order reduced = withQty(resting, resting.qtyTicks() - fill);
-                best.getValue().addFirst(reduced);        // keeps FIFO position
+                book.requeue(reduced);              // keeps FIFO position
                 open.put(reduced.id(), reduced);
             } else {
                 open.remove(resting.id());
@@ -45,7 +46,7 @@ public class MatchingEngine {
             trades.add(new Trade(
                     incoming.side() == Side.BUY ? incoming.id() : resting.id(),
                     incoming.side() == Side.BUY ? resting.id() : incoming.id(),
-                    best.getKey(), fill));                 // fill at resting price
+                    resting.pxTicks(), fill));      // fill at resting price
             remaining -= fill;
         }
 
@@ -60,9 +61,7 @@ public class MatchingEngine {
     public boolean cancel(long orderId) {
         Order o = open.remove(orderId);
         if (o == null) return false;
-        var side = o.side() == Side.BUY ? book.bids() : book.asks();
-        ArrayDeque<Order> level = side.get(o.pxTicks());
-        return level != null && level.remove(o);
+        return book.remove(o);
     }
 
     public boolean isOpen(long orderId) {
