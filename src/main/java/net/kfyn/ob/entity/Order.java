@@ -1,11 +1,10 @@
 package net.kfyn.ob.entity;
 
-import net.kfyn.common.number.KNumber;
-
-public record Order(long id, Side side, KNumber px, KNumber qty, OrderType orderType) {
+public record Order(long id, Side side, long pxT, long qtyT, OrderType orderType) {
     public Order {
-        if (qty == null) throw new IllegalArgumentException("invalid qty: " + qty);
-        if (px == null) throw new IllegalArgumentException("invalid px: " + px);
+        if (pxT < 0) throw new IllegalArgumentException("pxT: " + pxT);
+        if (qtyT < 0) throw new IllegalArgumentException("qtyT: " + qtyT);
+        if (side == null) throw new IllegalArgumentException("side is null");
         if (orderType == null) throw new IllegalArgumentException("orderType is null");
     }
 }
