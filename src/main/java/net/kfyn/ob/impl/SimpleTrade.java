@@ -1,4 +1,4 @@
-package net.kfyn.ob.simple;
+package net.kfyn.ob.impl;
 
 import net.kfyn.ob.entity.Trade;
 

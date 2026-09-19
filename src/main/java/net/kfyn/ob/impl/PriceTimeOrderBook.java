@@ -1,4 +1,4 @@
-package net.kfyn.ob.simple;
+package net.kfyn.ob.impl;
 
 import net.kfyn.ob.entity.Instrument;
 import net.kfyn.ob.entity.Order;
@@ -7,12 +7,12 @@ import net.kfyn.ob.entity.Side;
 
 import java.util.*;
 
-public class SimpleOrderBook implements OrderBook {
+public class PriceTimeOrderBook implements OrderBook {
     private final Instrument instrument;
     private final TreeMap<Long, ArrayDeque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
     private final TreeMap<Long, ArrayDeque<Order>> asks = new TreeMap<>();
 
-    public SimpleOrderBook(Instrument instrument) {
+    public PriceTimeOrderBook(Instrument instrument) {
         this.instrument = Objects.requireNonNull(instrument, "instrument");
     }
 

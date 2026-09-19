@@ -22,6 +22,6 @@ public interface Instrument {
     BigDecimal qtyValue(long t);
 
     static Instrument of(String symbol, String pxTick, String qtyTick) {
-        return net.kfyn.ob.simple.SimpleInstrument.of(symbol, pxTick, qtyTick);
+        return net.kfyn.ob.impl.SimpleInstrument.of(symbol, pxTick, qtyTick);
     }
 }

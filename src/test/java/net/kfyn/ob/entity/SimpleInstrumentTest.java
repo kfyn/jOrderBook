@@ -6,11 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
-import net.kfyn.ob.simple.*;
+import net.kfyn.ob.impl.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class InstrumentTest {
+class SimpleInstrumentTest {
 
     @Nested
     @DisplayName("construction")
