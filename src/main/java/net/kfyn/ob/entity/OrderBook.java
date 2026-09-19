@@ -2,6 +2,9 @@ package net.kfyn.ob.entity;
 
 import java.util.*;
 
+/**
+ * Single-threaded. Ticks must originate from this book's instrument
+ */
 public class OrderBook {
     private final Instrument instrument;
     private final TreeMap<Long, ArrayDeque<Order>> bids = new TreeMap<>(Comparator.reverseOrder());
@@ -16,27 +19,40 @@ public class OrderBook {
     }
 
     public void add(Order o) {
-        side(o.side()).computeIfAbsent(o.pxT(), p -> new ArrayDeque<>()).addLast(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addLast(o);
     }
 
     public void requeue(Order o) {
-        side(o.side()).computeIfAbsent(o.pxT(), p -> new ArrayDeque<>()).addFirst(o);
+        side(o.side()).computeIfAbsent(o.pxTicks(), p -> new ArrayDeque<>()).addFirst(o);
     }
 
     public Map.Entry<Long, ArrayDeque<Order>> bestBid() {
-        return bids.firstEntry();
+        return best(bids);
     }
 
     public Map.Entry<Long, ArrayDeque<Order>> bestAsk() {
-        return asks.firstEntry();
+        return best(asks);
     }
 
     public NavigableMap<Long, ArrayDeque<Order>> bids() {
-        return bids;
+        return view(bids);
     }
 
     public NavigableMap<Long, ArrayDeque<Order>> asks() {
-        return asks;
+        return view(asks);
+    }
+
+    private Map.Entry<Long, ArrayDeque<Order>> best(TreeMap<Long, ArrayDeque<Order>> side) {
+        while (!side.isEmpty()) {
+            var e = side.firstEntry();
+            if (!e.getValue().isEmpty()) return e;
+            side.pollFirstEntry();
+        }
+        return null;
+    }
+
+    private NavigableMap<Long, ArrayDeque<Order>> view(TreeMap<Long, ArrayDeque<Order>> side) {
+        return Collections.unmodifiableNavigableMap(side);
     }
 
     private TreeMap<Long, ArrayDeque<Order>> side(Side s) {
