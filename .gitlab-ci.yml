@@ -1,5 +1,6 @@
 stages:
   - test
+  - benchmark
 
 test:
   stage: test
@@ -25,6 +26,34 @@ test:
       junit: build/test-results/test/TEST-*.xml
     paths:
       - build/reports/tests/test/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
+    - when: always
+
+jmh-smoke:
+  stage: benchmark
+  tags:
+    - amd64
+  image: eclipse-temurin:25-jdk
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  cache:
+    key:
+      files:
+        - gradle/wrapper/gradle-wrapper.properties
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+    policy: pull-push
+  script:
+    - ./gradlew --no-daemon jmhSmoke
+  artifacts:
+    when: always
+    paths:
+      - build/jmh/
     expire_in: 1 week
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
