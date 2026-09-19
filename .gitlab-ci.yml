@@ -4,9 +4,11 @@ stages:
 
 test:
   stage: test
-  image: registry.gitlab.7desl.com/auto/tool-images/java:latest
-  # fallback if registry pull fails from runners:
-  # image: eclipse-temurin:25-jdk
+  tags:
+    - amd64
+  # registry.gitlab.7desl.com is not resolvable from runner host daemons (dind-only);
+  # use the public JDK image, gradle comes via the wrapper + cache
+  image: eclipse-temurin:25-jdk
   variables:
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
