@@ -22,13 +22,18 @@ public record KNumber(long mantissa, KExponent exponent) implements Comparable<K
         if (m == om && e == oe) return 0;
         if (m == 0 || om == 0) return m == om ? 0 : (m == 0 ? -1 : 1);
         if (e == oe) return Long.compare(m, om);
-        long k1 = digits(m) + e, k2 = digits(om) + oe;
+        long k1 = (long) digits(m) + e, k2 = (long) digits(om) + oe;
         if (k1 != k2) return Long.compare(k1, k2);
         // same magnitude class: exponents differ by ≤ 18, scale the smaller one if it fits
-        if (e < oe) { long p = POW10[oe - e]; if (m  <= Long.MAX_VALUE / p) return Long.compare(m * p, om); }
-        else        { long p = POW10[e - oe]; if (om <= Long.MAX_VALUE / p) return Long.compare(m, om * p); }
-        return BigDecimal.valueOf(m).scaleByPowerOfTen(e)
-                .compareTo(BigDecimal.valueOf(om).scaleByPowerOfTen(oe));  // rare
+        if (e < oe) {
+            long p = POW10[oe - e];
+            if (om > Long.MAX_VALUE / p) return -1;   // om*10^p overflows ⇒ it's bigger
+            return Long.compare(m, om * p);
+        } else {
+            long p = POW10[e - oe];
+            if (m > Long.MAX_VALUE / p) return 1;    // m*10^p overflows ⇒ it's bigger
+            return Long.compare(m * p, om);
+        }
     }
 
     /** POW10[i] == 10^i, for i in 0..18. 10^18 is the last power of ten that fits a long. */
