@@ -5,7 +5,7 @@ test:
   stage: test
   tags:
     - amd64
-  image: registry.7desl.com/auto/tool-images/java:latest
+  image: eclipse-temurin:25-jdk
   variables:
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
