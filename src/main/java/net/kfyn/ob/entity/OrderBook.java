@@ -9,8 +9,6 @@ public interface OrderBook {
 
     void add(Order o);
 
-    void requeue(Order o);
-
     boolean remove(Order o);
 
     Order amend(Order o, long newPxTicks, long newQtyTicks);

@@ -31,7 +31,14 @@ public final class Main {
      * asks 50000@102, 200@99, 700@98.
      */
     static AuctionResult uncrossBook() {
-        return AuctionEngine.priceTime().uncross(bids(), asks());
+        return AuctionEngine.maxVol().uncross(bids(), asks());
+    }
+
+    /** A disjoint book (best bid below best ask): exercises the no-cross path. */
+    static AuctionResult uncrossNoCross() {
+        return AuctionEngine.maxVol().uncross(
+                List.of(share(1, Side.BUY, 100, 100)),
+                List.of(share(2, Side.SELL, 101, 100)));
     }
 
     static List<Order> bids() {
@@ -54,8 +61,13 @@ public final class Main {
 
     private static void printDemo() {
         System.out.printf("book: bids 100@100, 1000@99, 500@96 | asks 50000@102, 200@99, 700@98%n");
-        AuctionResult r = uncrossBook();
+        printOutcome(uncrossBook());
+    }
+
+    /** Prints an uncrossing outcome; a no-cross result reports that no price matched. */
+    static void printOutcome(AuctionResult r) {
         if (r.priceTicks().isEmpty()) {
+            System.out.println("no cross: no matching auction price");
             return;
         }
         long px = r.priceTicks().getAsLong();

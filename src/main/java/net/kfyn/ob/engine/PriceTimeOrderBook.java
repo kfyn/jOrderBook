@@ -29,12 +29,6 @@ public class PriceTimeOrderBook implements OrderBook {
     }
 
     @Override
-    public void requeue(Order o) {
-        Objects.requireNonNull(o, "order");
-        side(o.side()).computeIfAbsent(o.pxTicks(), _ -> new ArrayDeque<>()).addFirst(o);
-    }
-
-    @Override
     public boolean remove(Order o) {
         Objects.requireNonNull(o, "order");
         TreeMap<Long, ArrayDeque<Order>> side = side(o.side());
@@ -58,7 +52,8 @@ public class PriceTimeOrderBook implements OrderBook {
             // same level, reduced qty: keep queue position (rebuild in place)
             ArrayDeque<Order> rebuilt = new ArrayDeque<>(level.size());
             for (Order resting : level) {
-                rebuilt.addLast(resting == o ? amended : resting);
+                // value equality
+                rebuilt.addLast(Objects.equals(resting, o) ? amended : resting);
             }
             side.put(newPxTicks, rebuilt);
         } else {
@@ -110,7 +105,7 @@ public class PriceTimeOrderBook implements OrderBook {
     /**
      * Runs the auction uncross over the resting book as a pure query: orders
      * are flattened per side in price-time order (price priority, FIFO within
-     * a level) and uncrossed by {@link PriceTimeAuctionEngine}. The book is
+     * a level) and uncrossed by {@link MaxVolAuctionEngine}. The book is
      * not modified.
      */
     public AuctionResult uncross() {
@@ -118,7 +113,7 @@ public class PriceTimeOrderBook implements OrderBook {
         this.bids.forEach((_, level) -> bids.addAll(level));
         List<Order> asks = new ArrayList<>();
         this.asks.forEach((_, level) -> asks.addAll(level));
-        return new PriceTimeAuctionEngine().uncross(bids, asks);
+        return new MaxVolAuctionEngine().uncross(bids, asks);
     }
 
     /**

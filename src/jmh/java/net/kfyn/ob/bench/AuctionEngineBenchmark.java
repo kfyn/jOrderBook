@@ -70,13 +70,13 @@ public class AuctionEngineBenchmark {
 
     @Benchmark
     public AuctionResult uncrossCrossed() {
-        return AuctionEngine.priceTime().uncross(crossedBids, crossedAsks);
+        return AuctionEngine.maxVol().uncross(crossedBids, crossedAsks);
     }
 
     @Benchmark
     public AuctionResult uncrossNoCross() {
         // Truly uncrossed book: exercises the engine's early-exit path
         // (no aggregation, no sweep, single leftovers copy).
-        return AuctionEngine.priceTime().uncross(gappedBids, gappedAsks);
+        return AuctionEngine.maxVol().uncross(gappedBids, gappedAsks);
     }
 }

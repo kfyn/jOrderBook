@@ -22,28 +22,32 @@ import java.util.TreeSet;
  * among equal-imbalance ties pick the highest price under pure buy
  * pressure, otherwise the lowest.
  */
-public class PriceTimeAuctionEngine implements AuctionEngine {
+public class MaxVolAuctionEngine implements AuctionEngine {
 
     @Override
     public AuctionResult uncross(List<Order> bids, List<Order> asks) {
         Objects.requireNonNull(bids, "bids");
         Objects.requireNonNull(asks, "asks");
-        // Validate sides and find the extreme prices in the same pass.
+        // Validate sides and quantities at this boundary, and find the extreme
+        // prices, in the same pass. Rejected outright when violated.
         long bestBid = Long.MIN_VALUE;
         for (Order b : bids) {
+            Objects.requireNonNull(b, "bid");
             if (b.side() != Side.BUY) throw new IllegalArgumentException("bid side: " + b.side());
+            if (b.qtyTicks() <= 0) throw new IllegalArgumentException("bid qty must be positive: " + b.qtyTicks());
             if (b.pxTicks() > bestBid) bestBid = b.pxTicks();
         }
         long bestAsk = Long.MAX_VALUE;
         for (Order a : asks) {
+            Objects.requireNonNull(a, "ask");
             if (a.side() != Side.SELL) throw new IllegalArgumentException("ask side: " + a.side());
+            if (a.qtyTicks() <= 0) throw new IllegalArgumentException("ask qty must be positive: " + a.qtyTicks());
             if (a.pxTicks() < bestAsk) bestAsk = a.pxTicks();
         }
         if (bids.isEmpty() || asks.isEmpty()) {
             return uncrossed(bids, asks);
         }
-        // Early exit: a clearing price needs bids >= p and asks <= p, so an
-        // uncrossed book (best bid below best ask) cannot trade at any price.
+        // Early exit: a clearing price needs bids >= p and asks <= p
         if (bestBid < bestAsk) {
             return uncrossed(bids, asks);
         }
@@ -63,6 +67,8 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
         for (long price : prices) {
             supply = Math.addExact(supply, askQty.getOrDefault(price, 0L));
             long volume = Math.min(demand, supply);
+            // demand and supply are non-negative and bounded by sums already
+            // checked with addExact, so their difference cannot overflow.
             long imb = Math.abs(demand - supply);
             if (volume > bestVol || (volume == bestVol && imb < bestImb)) {
                 bestVol = volume;
@@ -74,10 +80,7 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
             }
             demand = Math.subtractExact(demand, bidQty.getOrDefault(price, 0L));
         }
-        if (bestVol == 0) {
-            return uncrossed(bids, asks);
-        }
-
+        // bestVol > 0 is guaranteed here:  V(bestBid) >= min(bidQty(bestBid), askQty(bestAsk)) > 0.
         return execute(selectPrice(ties), bids, asks);
     }
 
@@ -152,9 +155,8 @@ public class PriceTimeAuctionEngine implements AuctionEngine {
     }
 
     private static AuctionResult uncrossed(List<Order> bids, List<Order> asks) {
-        // Ownership contract: the record defensively copies its lists, so
-        // hand it a pre-immutable list and the record's copyOf is a no-op —
-        // exactly one copy of the combined leftovers is made on this path.
+        // A true single copy would require AuctionResult to
+        // trust a caller-supplied immutable list; safety was kept instead.
         List<Order> leftovers = new ArrayList<>(bids.size() + asks.size());
         leftovers.addAll(bids);
         leftovers.addAll(asks);
